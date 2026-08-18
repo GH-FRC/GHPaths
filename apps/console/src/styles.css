@@ -14,20 +14,20 @@ body {
 }
 
 .app {
-  max-width: 960px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 24px;
 }
 
 header {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
 }
 
 h1 {
   font-size: 20px;
-  margin: 0;
+  margin: 0 8px 0 0;
 }
 
 .badge {
@@ -36,6 +36,40 @@ h1 {
   border: 1px solid #2a3550;
   padding: 2px 8px;
   border-radius: 999px;
+}
+
+.badge.ok {
+  color: #7ee787;
+  border-color: #1f4d2b;
+}
+
+.badge.warn {
+  color: #ffa657;
+  border-color: #4d3a1f;
+}
+
+.spacer {
+  flex: 1;
+}
+
+button {
+  font: inherit;
+  font-size: 13px;
+  color: #e8e8ea;
+  background: #1c2128;
+  border: 1px solid #333b47;
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #262d36;
+}
+
+.stop-all {
+  border-color: #6e2a2a;
+  color: #ff7b72;
 }
 
 .stage-wrap {
@@ -54,9 +88,30 @@ h1 {
   stroke-width: 0.06;
 }
 
-.robot {
+.geofence {
+  fill: none;
+  stroke: #3d444d;
+  stroke-width: 0.04;
+  stroke-dasharray: 0.25 0.2;
+}
+
+.trail {
+  fill: none;
+  stroke-width: 0.045;
+  opacity: 0.55;
+}
+
+.robot-layer .robot-body {
   fill: #2ea04326;
   stroke-width: 0.06;
+}
+
+.robot-layer .heading {
+  stroke-width: 0.06;
+}
+
+.robot-layer.idle .robot-body {
+  stroke: #4a515c;
 }
 
 .robot-1 { stroke: #ff7b72; }
@@ -65,6 +120,20 @@ h1 {
 .robot-4 { stroke: #7ee787; }
 .robot-5 { stroke: #79c0ff; }
 .robot-6 { stroke: #d2a8ff; }
+
+.robot-1 .trail { stroke: #ff7b72; }
+.robot-2 .trail { stroke: #ffa657; }
+.robot-3 .trail { stroke: #f2cc60; }
+.robot-4 .trail { stroke: #7ee787; }
+.robot-5 .trail { stroke: #79c0ff; }
+.robot-6 .trail { stroke: #d2a8ff; }
+
+.robot-1 .heading { stroke: #ff7b72; }
+.robot-2 .heading { stroke: #ffa657; }
+.robot-3 .heading { stroke: #f2cc60; }
+.robot-4 .heading { stroke: #7ee787; }
+.robot-5 .heading { stroke: #79c0ff; }
+.robot-6 .heading { stroke: #d2a8ff; }
 
 .robot-label {
   fill: #9aa4b2;
@@ -75,3 +144,65 @@ h1 {
   color: #9aa4b2;
   font-size: 13px;
 }
+
+.hint code {
+  background: #1c2128;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.panel {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.robot-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #161b22;
+  border: 1px solid #232932;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.robot-card.offline {
+  opacity: 0.55;
+}
+
+.robot-card button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.card-team {
+  font-weight: 600;
+  min-width: 38px;
+}
+
+.card-state {
+  flex: 1;
+  color: #9aa4b2;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #3d444d;
+}
+
+.dot[data-on='true'] {
+  box-shadow: 0 0 6px currentColor;
+  background: currentColor;
+}
+
+.robot-dot-1 { color: #ff7b72; }
+.robot-dot-2 { color: #ffa657; }
+.robot-dot-3 { color: #f2cc60; }
+.robot-dot-4 { color: #7ee787; }
+.robot-dot-5 { color: #79c0ff; }
+.robot-dot-6 { color: #d2a8ff; }

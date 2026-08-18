@@ -1,34 +1,56 @@
-// fake-robot —— 无硬件开发回路的模拟机器人（ADR-0005）。
+// fake-robot —— 无硬件开发回路的模拟机器人入口（ADR-0005）。
 //
-// 每个模拟机器人提供两件事：
-//  1. NT4：发布 pose/health（Node ≥22 全局 WebSocket；中心服务器拓扑下连演控）；
-//  2. DS 端点：监听 UDP 1110/1150 + TCP 1740，模拟 roboRIO 的使能语义——
-//     只有持续收到 multi-DS 的控制包才“允许运动”，停包即失效。
-//     模拟端点必须实现与真机一致的看门狗语义，否则测不出安全问题（ADR-0005 的硬约束）。
-//
-// 计划用法：npm run sim -- --count 6 --base-team 9001
-// TODO(Phase 0)：完整实现（pose 沿椭圆/八字漫游即可满足 UI 调试）。
-// 运行方式：node src/main.ts（Node ≥23.6 原生 type stripping，无需构建）。
+// 每台模拟机器人 = NT4 服务端（位姿/健康发布 + 命令接收）。DS 端点模拟属 Phase 0。
+// 运行：npm run sim [-- --count 6 --base-team 9001 --no-free-run]
+//   --count N        启动 N 台（默认 6）
+//   --base-team T    队号起点（默认 9001）
+//   --no-free-run    冻结直到收到 start/resume 命令（默认 free-run：启动即漫游）
+import { FakeRobot } from './robot.ts';
+import { simTopology } from '@ghpaths/show-protocol';
 
-interface FakeRobotOptions {
+interface Options {
   count: number;
   baseTeam: number;
-  host: string;
+  freeRun: boolean;
 }
 
-function parseArgs(argv: string[]): FakeRobotOptions {
-  // TODO(Phase 0)：完整参数解析（--count / --base-team）
-  const count = Number(argv[2] ?? 6);
-  return { count, baseTeam: 9001, host: '127.0.0.1' };
+function parseArgs(argv: string[]): Options {
+  const opts: Options = { count: simTopology.count, baseTeam: simTopology.teamBase, freeRun: true };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--count') opts.count = Number(argv[++i]);
+    else if (a === '--base-team') opts.baseTeam = Number(argv[++i]);
+    else if (a === '--no-free-run') opts.freeRun = false;
+  }
+  return opts;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
-  console.log(
-    `TODO(Phase 0): 启动 ${opts.count} 台模拟机器人（队号 ${opts.baseTeam} 起）@ ${opts.host}`,
-  );
-  console.log('每台 = NT4 pose/health 发布 + DS 端点（UDP 1110/1150、TCP 1740）模拟 roboRIO 使能语义');
-  process.exitCode = 1; // 尚未实现：显式失败而非静默成功
+  if (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > 99) {
+    console.error('--count 需要 1~99 的整数（端口派生自 team%100，>99 会撞端口）');
+    process.exit(1);
+  }
+  if (!Number.isInteger(opts.baseTeam) || opts.baseTeam < 1) {
+    console.error('--base-team 需要正整数队号');
+    process.exit(1);
+  }
+  console.log(`fake-robot: 启动 ${opts.count} 台模拟机器人（队号 ${opts.baseTeam} 起，free-run=${opts.freeRun}）`);
+  for (let i = 0; i < opts.count; i++) {
+    const team = opts.baseTeam + i;
+    const robot = new FakeRobot({
+      team,
+      port: simTopology.wsPortBase + (team % 100),
+      host: '127.0.0.1',
+      freeRun: opts.freeRun,
+    });
+    await robot.start();
+    console.log(`  team ${team} → ${simTopology.wsUrl(team)}/nt/…`);
+  }
+  console.log('就绪。Ctrl-C 退出。');
 }
 
-main();
+main().catch((err: unknown) => {
+  console.error('fake-robot 启动失败:', err);
+  process.exit(1);
+});
