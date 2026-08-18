@@ -1,0 +1,16 @@
+{
+  "name": "@ghpaths/multi-ds",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "start": "echo 'TODO(Phase 0): multi-ds 独立进程入口（见本包 README）' && exit 1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  }
+}

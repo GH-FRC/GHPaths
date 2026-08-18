@@ -1,0 +1,17 @@
+{
+  "name": "@ghpaths/nt-link",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ghpaths/show-protocol": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

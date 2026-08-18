@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.vite/
+coverage/
+# robot (GradleRIO, Phase 0 起)
+robot/**/build/
+networktables.ini

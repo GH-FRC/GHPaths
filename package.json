@@ -1,0 +1,20 @@
+{
+  "name": "ghpaths",
+  "private": true,
+  "version": "0.0.1",
+  "description": "GHPaths — 面向机器人表演的 FRC 多机器人路径规划与监控系统",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "sim/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @ghpaths/console",
+    "build": "npm run build -w @ghpaths/console",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "sim": "npm run start -w @ghpaths/fake-robot"
+  }
+}

@@ -1,0 +1,77 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #101418;
+  color: #e8e8ea;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.badge {
+  font-size: 12px;
+  color: #8ab4ff;
+  border: 1px solid #2a3550;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.stage-wrap {
+  margin-top: 16px;
+}
+
+.stage {
+  width: 100%;
+  background: #161b22;
+  border-radius: 8px;
+}
+
+.stage-border {
+  fill: none;
+  stroke: #2f81f7;
+  stroke-width: 0.06;
+}
+
+.robot {
+  fill: #2ea04326;
+  stroke-width: 0.06;
+}
+
+.robot-1 { stroke: #ff7b72; }
+.robot-2 { stroke: #ffa657; }
+.robot-3 { stroke: #f2cc60; }
+.robot-4 { stroke: #7ee787; }
+.robot-5 { stroke: #79c0ff; }
+.robot-6 { stroke: #d2a8ff; }
+
+.robot-label {
+  fill: #9aa4b2;
+  font-size: 0.35px;
+}
+
+.hint {
+  color: #9aa4b2;
+  font-size: 13px;
+}
