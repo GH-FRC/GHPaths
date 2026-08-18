@@ -24,6 +24,8 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
   const [connected, setConnected] = useState(false);
   const [robots, setRobots] = useState<Map<number, MultiDsRobotStatus>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
+  /** CONNECTING 期间发出的命令缓存（急停绝不能因重连窗口被静默丢弃），onopen 时补发 */
+  const pendingRef = useRef<MultiDsCommand[]>([]);
 
   useEffect(() => {
     let stopped = false;
@@ -36,12 +38,15 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (wsRef.current !== ws) return; // StrictMode/Fast Refresh 的旧 socket 迟到事件
         setConnected(true);
         const send = (m: MultiDsControl): void => ws.send(JSON.stringify(m));
         send({ type: 'uiPing' });
+        for (const cmd of pendingRef.current.splice(0)) send(cmd);
         pingTimer = setInterval(() => send({ type: 'uiPing' }), 500);
       };
       ws.onmessage = (ev: MessageEvent) => {
+        if (wsRef.current !== ws) return;
         if (typeof ev.data !== 'string') return;
         try {
           const msg = JSON.parse(ev.data) as { type?: string; robots?: MultiDsRobotStatus[] };
@@ -53,6 +58,7 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
         }
       };
       ws.onclose = () => {
+        if (wsRef.current !== ws) return;
         setConnected(false);
         setRobots(new Map()); // 断连后清空快照，避免显示过期的"运动中"
         if (pingTimer) clearInterval(pingTimer);
@@ -74,7 +80,16 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
 
   const send = (cmd: MultiDsCommand): void => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(cmd));
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(cmd));
+      return;
+    }
+    // 未连接（含重连窗口）：缓存待补发；每类命令只留最新（幂等）
+    pendingRef.current = pendingRef.current.filter(
+      (c) => c.type !== cmd.type || ('team' in c && 'team' in cmd && c.team !== cmd.team),
+    );
+    pendingRef.current.push(cmd);
+    if (pendingRef.current.length > 32) pendingRef.current.shift();
   };
 
   return { connected, robots, send };

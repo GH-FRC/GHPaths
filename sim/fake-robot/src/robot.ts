@@ -100,7 +100,10 @@ export class FakeRobot {
       this.setupConnection(sock);
     });
 
-    await new Promise<void>((resolve) => server.listen(this.opts.port, this.opts.host, resolve));
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(this.opts.port, this.opts.host, resolve);
+    });
 
     if (!this.opts.freeRun) {
       this.ds = new DsEndpoint({ host: this.opts.host, port: simTopology.robotDsControlPort(this.opts.team) });

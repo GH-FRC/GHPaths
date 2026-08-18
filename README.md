@@ -13,7 +13,7 @@
 | `packages/field-model` | 舞台/足迹/路径/地理围栏数据模型 |
 | `packages/nt-link` | NT4 接入适配层：按 NT4 规范 4.1 自研薄客户端（浏览器/Node 通用） |
 | `packages/multi-ds` | 自研 multi-DS：FRC DS 协议心跳与使能控制（独立进程，Phase 0） |
-| `sim/fake-robot` | 模拟机器人：NT4 服务端 + 位姿生成（DS 端点模拟属 Phase 0） |
+| `sim/fake-robot` | 模拟机器人：NT4 服务端 + 位姿生成 + DS 端点（UDP 看门狗语义） |
 | `robot/` | roboRIO 机器人代码（Phase 0 由 WPILib 模板生成，钉 2026 栈） |
 | `docs/` | 架构、ADR 决策记录、DS 协议笔记、Phase 0 清单 |
 | `scripts/` | 演控机环境脚本（secondary IP 别名配置等） |

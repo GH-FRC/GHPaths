@@ -54,13 +54,14 @@ async function main(): Promise<void> {
   console.log(`2) 使能：enabled=${moving ? 'true' : 'false'}${moving ? ' ✓' : ' ✗'}`);
   if (!moving) throw new Error('使能后未运动');
 
-  // 3) 心跳停止（进程内 stop = 模拟 multi-DS 崩溃）→ 看门狗 ≤1s 失效
+  // 3) 心跳停止（进程内 stop = 模拟 multi-DS 崩溃）→ 看门狗 ≤1s 失效（含量化余量的硬判据）
+  const WATCHDOG_LIMIT_MS = 1100;
   const t0 = performance.now();
   await ds.stop();
   const died = await waitHealth(holder, (h) => !h.enabled && !h.dsLinked, 1500);
-  const elapsed = (performance.now() - t0).toFixed(0);
-  console.log(`3) 看门狗：心跳停止后 ${elapsed}ms 失效${died ? ' ✓' : ' ✗（要求 ≤~1s）'}`);
-  if (!died) throw new Error('心跳停止后机器人未失效');
+  const elapsed = performance.now() - t0;
+  console.log(`3) 看门狗：心跳停止后 ${elapsed.toFixed(0)}ms 失效${died && elapsed <= WATCHDOG_LIMIT_MS ? ' ✓' : ' ✗（要求 ≤' + WATCHDOG_LIMIT_MS + 'ms）'}`);
+  if (!died || elapsed > WATCHDOG_LIMIT_MS) throw new Error('心跳停止后机器人未在 1.1s 内失效');
 
   // 4) estop 闩锁：estop → estopped；disable 不解除；clearEstop 恢复
   const ds2 = new LogicalDs(simConfig);

@@ -34,6 +34,15 @@ function parseArgs(argv: string[]): Options {
     console.error('--count 需要 1~99 的整数');
     process.exit(1);
   }
+  if (!Number.isInteger(opts.baseTeam) || opts.baseTeam < 1) {
+    console.error('--base-team 需要正整数队号');
+    process.exit(1);
+  }
+  // 宽限期是安全链（可调不可关）：NaN 会让比较恒 false 而静默失效，必须硬校验
+  if (!Number.isInteger(opts.graceMs) || opts.graceMs < 250) {
+    console.error('--grace-ms 需要 ≥250 的整数（毫秒）');
+    process.exit(1);
+  }
   return opts;
 }
 
@@ -65,7 +74,27 @@ async function main(): Promise<void> {
   }
 
   // ---- 控制API（仅 localhost）----
-  const wss = new WebSocketServer({ host: '127.0.0.1', port: MULTI_DS_CONTROL_PORT });
+  const wss = new WebSocketServer({
+    host: '127.0.0.1',
+    port: MULTI_DS_CONTROL_PORT,
+    // 浏览器页面必带 Origin：只接受本机来源，挡掉任意网页连 5899 发 clearEstop/enableAll；
+    // 无 Origin（本地进程，如探针）放行
+    verifyClient: (info: { req: { headers: Record<string, string | string[] | undefined> } }): boolean => {
+      const origin = info.req.headers.origin;
+      if (origin === undefined) return true;
+      try {
+        const url = new URL(origin);
+        return (url.protocol === 'http:' || url.protocol === 'https:') &&
+          (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]');
+      } catch {
+        return false;
+      }
+    },
+  });
+  wss.on('error', (err: Error) => {
+    console.error('multi-DS 控制 API 异常（5899 被占？）:', err.message);
+    process.exit(1);
+  });
   let lastUiActivityMs = 0;
   let uiHasConnected = false;
 

@@ -11,6 +11,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function waitUntil(pred: () => boolean, timeoutMs: number): Promise<boolean> {
+  const start = performance.now();
+  return new Promise((resolve) => {
+    const iv = setInterval(() => {
+      if (pred()) {
+        clearInterval(iv);
+        resolve(true);
+      } else if (performance.now() - start > timeoutMs) {
+        clearInterval(iv);
+        resolve(false);
+      }
+    }, 50);
+  });
+}
+
 function spread(samples: PoseSample[]): number {
   if (samples.length < 2) return 0;
   const first = samples[0]!;
@@ -36,7 +51,8 @@ async function main(): Promise<void> {
   console.log(`1) 位姿流：${poses.length} 样本/1.2s（要求 ≥15）${streamOk ? ' ✓' : ' ✗'}`);
   if (!streamOk) throw new Error('位姿流不达标');
 
-  // 2) DS 使能（探针自带逻辑 DS）→ 运动
+  // 2) DS 使能（探针自带逻辑 DS）→ 运动。
+  //    先防 free-run 误通过：free-run 下无 DS 端点，dsLinked 恒 false、机器人本来就在动。
   const ds = new LogicalDs({
     team,
     localAddress: '127.0.0.1',
@@ -46,6 +62,13 @@ async function main(): Promise<void> {
     statusPort: null,
   });
   await ds.start();
+  const holder: { h?: { dsLinked: boolean; enabled: boolean } } = {};
+  conn.onHealth((h) => {
+    holder.h = h;
+  });
+  const linkOk = await waitUntil(() => holder.h?.dsLinked === true, 1500);
+  if (!linkOk) throw new Error('DS 建链失败——sim 是否以 --free-run 运行？（free-run 请去掉该参数再测）');
+  if (holder.h?.enabled === true) throw new Error('未使能却已在运动——sim 疑似 --free-run');
   ds.enableAutonomous();
   const before = poses.length;
   await sleep(1200);

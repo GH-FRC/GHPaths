@@ -28,6 +28,9 @@ export {
   STATUS_MODE_MASK,
   TRACE_ROBOT_CODE,
   TRACE_IS_ROBORIO,
+  TRACE_TEST_MODE,
+  TRACE_AUTONOMOUS,
+  TRACE_TELEOP,
   TRACE_DISABLED,
 } from './packet.ts';
 export type { ControlPacketInput, StatusPacket } from './packet.ts';

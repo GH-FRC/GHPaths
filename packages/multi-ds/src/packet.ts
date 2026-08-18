@@ -40,6 +40,9 @@ export const STATUS_MODE_MASK = 0x03;
 
 export const TRACE_ROBOT_CODE = 0x20;
 export const TRACE_IS_ROBORIO = 0x10;
+export const TRACE_TEST_MODE = 0x08;
+export const TRACE_AUTONOMOUS = 0x04;
+export const TRACE_TELEOP = 0x02;
 export const TRACE_DISABLED = 0x01;
 
 export interface ControlPacketInput {
@@ -52,7 +55,7 @@ export interface ControlPacketInput {
   restartCode: boolean;
 }
 
-/** 编码控制包（无标签区，7 字节） */
+/** 编码控制包（无标签区，6 字节：seq u16 + commVer + control + request + alliance） */
 export function encodeControlPacket(input: ControlPacketInput): Buffer {
   const control =
     (input.estop ? CONTROL_ESTOP : 0) |
