@@ -4,13 +4,19 @@
   "version": "0.0.1",
   "type": "module",
   "main": "src/index.ts",
-  "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "start": "echo 'TODO(Phase 0): multi-ds 独立进程入口（见本包 README）' && exit 1"
+    "start": "node src/main.ts",
+    "probe:ds": "node src/ds-probe.ts"
+  },
+  "dependencies": {
+    "@ghpaths/show-protocol": "*",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@ghpaths/nt-link": "*",
     "@types/node": "^20.14.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.5.4"
   }
 }

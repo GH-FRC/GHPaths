@@ -67,8 +67,11 @@ export const ntTopics = {
 } as const;
 
 /**
- * sim 开发回路的拓扑约定（ADR-0005）：console 与 fake-robot 共用此推导。
- * 真实机器人 NT4 服务端在 5810；模拟机器人各自占用 15801~15806（本机回环）。
+ * sim 开发回路的拓扑约定（ADR-0005）：console 与 fake-robot / multi-DS 共用此推导。
+ * 真实机器人 NT4 服务端在 5810、DS 走 UDP 1110/1150（按 10.TE.AM.5 alias 区分）；
+ * sim 在同一台机器上用**端口区分**各端点（macOS 127/8 其余地址默认不可 bind）：
+ *   NT4 各机 15801~15806，机器人 DS 端点 15101~15106，逻辑 DS 15001~15006。
+ * 真机模式不受影响（LogicalDs 默认 1110/1150 + alias 地址）。
  */
 export const simTopology = {
   teamBase: 9001,
@@ -77,7 +80,47 @@ export const simTopology = {
   teams(): RobotId[] {
     return Array.from({ length: this.count }, (_, i) => this.teamBase + i);
   },
+  /** 模拟机器人 NT4 服务端端口（对应真机 5810） */
+  wsPort(team: RobotId): number {
+    return this.wsPortBase + (team % 100);
+  },
   wsUrl(team: RobotId): string {
-    return `ws://127.0.0.1:${this.wsPortBase + (team % 100)}`;
+    return `ws://127.0.0.1:${this.wsPort(team)}`;
+  },
+  /** 机器人侧 DS 端点端口（真机固定 1110） */
+  robotDsControlPort(team: RobotId): number {
+    return 15100 + (team % 100);
+  },
+  /** 逻辑 DS 本地端口（真机固定 1110） */
+  dsControlPort(team: RobotId): number {
+    return 15000 + (team % 100);
   },
 } as const;
+
+/** multi-DS 控制 API 端口（仅 localhost；ADR-0002） */
+export const MULTI_DS_CONTROL_PORT = 5899;
+
+/** UI → multi-DS 控制 API 消息（ws://127.0.0.1:5899，JSON） */
+export type MultiDsControl =
+  | { type: 'enable'; team: RobotId }
+  | { type: 'disable'; team: RobotId }
+  | { type: 'estop'; team: RobotId }
+  | { type: 'clearEstop'; team: RobotId }
+  | { type: 'enableAll' }
+  | { type: 'disableAll' }
+  | { type: 'estopAll' }
+  | { type: 'uiPing' };
+
+/** multi-DS → UI 状态广播（约 10Hz） */
+export interface MultiDsRobotStatus {
+  team: RobotId;
+  state: 'disabled' | 'enabled' | 'estopped';
+  /** 500ms 内收到机器人状态包视为链路在线 */
+  linked: boolean;
+  batteryVolts: number;
+}
+
+export interface MultiDsStatusMsg {
+  type: 'status';
+  robots: MultiDsRobotStatus[];
+}

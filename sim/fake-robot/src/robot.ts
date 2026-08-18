@@ -14,7 +14,8 @@
 import { createServer } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { encode, decodeMulti } from '@msgpack/msgpack';
-import { ntTopics, type RobotId } from '@ghpaths/show-protocol';
+import { ntTopics, simTopology, type RobotId } from '@ghpaths/show-protocol';
+import { DsEndpoint } from './ds-endpoint.ts';
 
 const SUBPROTO_41 = 'v4.1.networktables.first.wpi.edu';
 const SUBPROTO_40 = 'networktables.first.wpi.edu';
@@ -64,6 +65,8 @@ export class FakeRobot {
   private simSeconds = 0;
   private lastTickNs = this.startNs;
   private wss: WebSocketServer | null = null;
+  /** DS 端点（free-run=false 时创建）：运动许可的权威来源 */
+  private ds: DsEndpoint | null = null;
 
   private readonly opts: FakeRobotOptions;
 
@@ -97,7 +100,15 @@ export class FakeRobot {
       this.setupConnection(sock);
     });
 
-    await new Promise<void>((resolve) => server.listen(this.opts.port, this.opts.host, resolve));
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(this.opts.port, this.opts.host, resolve);
+    });
+
+    if (!this.opts.freeRun) {
+      this.ds = new DsEndpoint({ host: this.opts.host, port: simTopology.robotDsControlPort(this.opts.team) });
+      await this.ds.start();
+    }
 
     setInterval(() => this.tick(), 50);
     setInterval(() => this.pingSweep(), 1000);
@@ -334,7 +345,9 @@ export class FakeRobot {
     const nowNs = process.hrtime.bigint();
     const dt = Number(nowNs - this.lastTickNs) / 1e9;
     this.lastTickNs = nowNs;
-    if (!this.frozen) this.simSeconds += dt;
+    // 运动许可：free-run 调试旁路，或 DS 端点在线且使能（看门狗语义在 DsEndpoint 内）
+    const motionPermitted = this.opts.freeRun || (this.ds?.enabled ?? false);
+    if (!this.frozen && motionPermitted) this.simSeconds += dt;
 
     const pose = this.topics.get(ntTopics.pose(this.opts.team));
     const health = this.topics.get(ntTopics.health(this.opts.team));
@@ -344,11 +357,12 @@ export class FakeRobot {
     pose.lastTsUs = ts;
     pose.lastValue = this.poseAt(this.simSeconds);
 
+    const moving = !this.frozen && motionPermitted;
     const hJson = JSON.stringify({
-      dsLinked: false,
-      enabled: !this.frozen,
-      estopped: false,
-      codeVersion: 'sim-0.1',
+      dsLinked: this.ds?.dsLinked ?? false,
+      enabled: moving,
+      estopped: this.ds?.estopped ?? false,
+      codeVersion: 'sim-0.2',
       fault: null,
     });
     const healthDirty = hJson !== String(health.lastValue);

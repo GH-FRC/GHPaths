@@ -44,11 +44,13 @@
 
 | 端口 | 协议 | 用途 |
 |---|---|---|
-| 5810（/5811 TLS） | NT4 WebSocket | 位姿/命令/时钟 |
-| TCP 1740 | FRC DS | roboRIO → DS 连接管理（标签化数据） |
-| UDP 1110 | FRC DS | DS → roboRIO 控制包（20ms 心跳） |
-| UDP 1150 | FRC DS | roboRIO → DS 状态包（20ms） |
+| 5810（/5811 TLS） | NT4 WebSocket | 位姿/命令/时钟（真机） |
+| TCP 1740 | FRC DS | roboRIO → DS 连接管理（标签化数据；Phase 0） |
+| UDP 1110 | FRC DS | DS → roboRIO 控制包（20ms 心跳；真机） |
+| UDP 1150 | FRC DS | roboRIO → DS 状态包（20ms；真机） |
 | 5899 | 本地 | multi-DS 控制 API（UI ↔ multi-DS，仅 localhost） |
+
+**sim 端口约定**（macOS 127/8 其余地址默认不可 bind，故用端口区分；真机模式不受影响）：NT4 各机 15801~15806；机器人 DS 端点 15101~15106；逻辑 DS 15001~15006（收发同 socket，状态包回控制包来源端口——真机模式为独立 1150 socket，`LogicalDsConfig.statusPort` 区分）。
 
 FMS 侧端口（1160/1750/1121 等）本项目不使用，记录在协议笔记里备查。
 
@@ -67,7 +69,9 @@ FMS 侧端口（1160/1750/1121 等）本项目不使用，记录在协议笔记�
 - **机器人代码崩溃** → robot code 标志位失效，DS 侧可见；
 - **物理急停**：独立于以上一切软件链路（报告 §六.4）。
 
-## 启动自检（console / multi-ds 启动时执行）
+## 启动自检（规划，Phase 0 实现前的目标行为）
+
+> 状态：**尚未实现**——现行兜底只有手动 `scripts/setup-aliases.sh status`。下述为设计目标。
 
 任一项不通过：UI 显式标红对应机器人，禁止一键启动。alias 可能被网卡 bounce（WiFi 重连/DHCP 续租）清掉，因此自检每次启动都跑而非只在安装时跑（报告 §六.5/§7.3）：
 
