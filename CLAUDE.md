@@ -27,7 +27,7 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 - 目录速览：`apps/console`（UI）· `packages/{show-protocol,field-model,nt-link,multi-ds}` · `sim/fake-robot` · `robot/`（Phase 0 生成）· `docs/`（architecture / decisions(ADR) / protocol / phase0-checklist）· `scripts/`；
 - 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）；
 - **工程日志**：每天一篇 `engineering-log/YYYY.M.D.md`（月/日不补零，格式如 `2026.8.18`），当天已有则续写不另开；每次会话收尾前检查当天日志是否已反映本次工作（约定详见 `engineering-log/README.md`）；
-- **分支纪律（2026-08-18 用户指令）**：任何改动——新功能、修复、文档、日志——一律先开独立分支（`feat/`、`fix/`、`docs/` 前缀），完成后提交、创建 PR 合入 `main`；**永远不在 main 上直接改动**。PR 创建后默认自行合并以保持开发推进，用户明确表示要审阅的 PR 除外。
+- **分支纪律（2026-08-18 用户指令）**：任何改动——新功能、修复、文档、日志——一律先开独立分支（`feat/`、`fix/`、`docs/` 前缀），完成后提交、创建 PR 合入 `main`；**永远不在 main 上直接改动**。PR 创建后默认自行合并以保持开发推进，用户明确表示要审阅的 PR 除外。main 由仓库 ruleset `protect-main` 强制保护（PR 必需、0 审批即可合并、禁 force push 与删除、无豁免者）——直接 push main 被拒属预期。
 
 ## 环境备注（macOS，演控主力机）
 
