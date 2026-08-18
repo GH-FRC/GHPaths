@@ -42,11 +42,15 @@ function dsStateText(ds: MultiDsRobotStatus | undefined, ntLive: boolean, showSt
   if (!ds) return 'multi-DS 未连';
   if (ds.state === 'estopped') return '急停';
   if (!ds.linked) return '失联';
-  if (ds.state === 'enabled') {
-    if (showState === 'held') return '保持中';
-    return ntLive ? '运动中' : '已使能';
+  if (ds.state !== 'enabled') return '未使能';
+  // DS 已使能：细分演出层
+  switch (showState) {
+    case 'running': return ntLive ? '运动中' : '运行?无数据';
+    case 'held': return '保持中';
+    case 'stopped': return '演出结束';
+    case 'armed': return '待演';
+    default: return '已使能';
   }
-  return '未使能';
 }
 
 export function App() {
@@ -54,7 +58,7 @@ export function App() {
   const multiDs = useMultiDs();
   const teams = useMemo(() => simTopology.teams(), []);
   const demoShow = useMemo(() => createDemoShow(teams), [teams]);
-  const show = useShow(publishClock, sendCommand, teams);
+  const show = useShow(publishClock, sendCommand, teams, demoShow.durationShowUs);
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
@@ -71,7 +75,9 @@ export function App() {
           multi-DS {multiDs.connected ? '已连' : '未连'}
         </span>
         <span className={`badge ${show.phase === 'running' ? 'ok' : show.phase === 'held' ? 'warn' : ''}`}>
-          {show.phase === 'idle' ? '演出未启动' : `⏱ ${show.tShowSeconds.toFixed(1)}s${show.phase === 'held' ? '（已暂停）' : ''}`}
+          {show.phase === 'idle'
+            ? '演出未启动'
+            : `${show.ended ? '演出结束' : show.phase === 'held' ? '已暂停' : '⏱'} ${show.tShowSeconds.toFixed(1)}s`}
         </span>
         <div className="spacer" />
         {show.phase === 'idle' ? (
@@ -88,7 +94,7 @@ export function App() {
           <>
             {show.phase === 'running' ? (
               <button onClick={() => show.hold()}>暂停</button>
-            ) : (
+            ) : show.ended ? null : (
               <button onClick={() => show.resume()}>继续</button>
             )}
             <button

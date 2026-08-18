@@ -116,10 +116,10 @@ class RobotConnectionImpl implements RobotConnection {
 
   private dispatch(topicName: string, tsUs: number, value: unknown): void {
     if (topicName === ntTopics.pose(this.robot)) {
-      if (!Array.isArray(value) || value.length < 3) return;
-      const [x, y, heading] = value as number[];
-      if (typeof x !== 'number' || typeof y !== 'number' || typeof heading !== 'number') return;
-      const pose: PoseSample = { tShowUs: tsUs, xM: x, yM: y, headingRad: heading };
+      if (!Array.isArray(value) || value.length < 4) return;
+      const [t, x, y, heading] = value as number[];
+      if (typeof t !== 'number' || typeof x !== 'number' || typeof y !== 'number' || typeof heading !== 'number') return;
+      const pose: PoseSample = { tShowUs: t, xM: x, yM: y, headingRad: heading };
       for (const cb of this.poses) cb(pose);
     } else if (topicName === ntTopics.health(this.robot)) {
       if (typeof value !== 'string') return;

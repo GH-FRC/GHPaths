@@ -51,7 +51,7 @@ export type ShowCommand =
   | { kind: 'resume' }
   | { kind: 'stop' };
 
-/** 演控 → 全体的时钟样本（约 250ms 周期，Phase 0 校准） */
+/** 演控 → 全体的时钟样本（100ms/10Hz 周期；机器人端失联阈值 SHOW_CLOCK_TIMEOUT_MS=750ms） */
 export interface ShowClockSample {
   /** 演控侧单调时钟，微秒——机器人端据此做 RTT/漂移估计 */
   tMonotonicUs: number;

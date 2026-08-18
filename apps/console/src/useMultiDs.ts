@@ -84,7 +84,10 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
       ws.send(JSON.stringify(cmd));
       return;
     }
-    // 未连接（含重连窗口）：缓存待补发；每类命令只留最新（幂等）
+    // 未连接（含重连窗口）：只有停向命令值得缓存补发；使能类缓存补发会造成
+    // "multi-DS 晚启动 → 已装填的机器人无人操作突然开动"的反安全延迟自启动，直接丢弃
+    const stopDirected = cmd.type.startsWith('estop') || cmd.type.startsWith('disable') || cmd.type === 'clearEstop';
+    if (!stopDirected) return;
     pendingRef.current = pendingRef.current.filter(
       (c) => c.type !== cmd.type || ('team' in c && 'team' in cmd && c.team !== cmd.team),
     );

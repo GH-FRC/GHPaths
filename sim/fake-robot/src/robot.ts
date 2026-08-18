@@ -71,6 +71,9 @@ export class FakeRobot {
   /** 演出驱动状态（show-time 语义见 show-protocol） */
   private showPath: RobotShowPath | null = null;
   private showStarted = false;
+  private showStopped = false;
+  private tStartShowUs = 0;
+  private fault: string | null = null;
   private clock: { tShowUs: number; running: boolean; arrivalMs: number } | null = null;
   private lastTShowUs = 0;
   private curPose: [number, number, number];
@@ -79,9 +82,9 @@ export class FakeRobot {
 
   constructor(opts: FakeRobotOptions) {
     this.opts = opts;
-    // 待命位：舞台前区一字排开
-    const i = (opts.team % 100) - 1;
-    this.curPose = [-3.5 + i * 1.4, -3.0, 0];
+    // 待命位 = 本机演出路径首航点（就位检查的基准；真机同样要求开演前就位于路径起点）
+    const wp = this.demoPath().waypoints[0]!;
+    this.curPose = [wp.xM, wp.yM, wp.headingRad];
   }
 
   async start(): Promise<void> {
@@ -275,9 +278,18 @@ export class FakeRobot {
     if (name === ntTopics.clock) {
       try {
         const sample = JSON.parse(value) as { tShowUs?: unknown; running?: unknown };
-        if (typeof sample.tShowUs === 'number') {
-          this.clock = { tShowUs: sample.tShowUs, running: sample.running === true, arrivalMs: performance.now() };
+        if (typeof sample.tShowUs !== 'number') return;
+        // 时钟跳变防护（安全约束 5）：running 期间样本只允许按真实到样间隔推进，不得回跳
+        if (this.showStarted && this.clock !== null) {
+          const gapMs = performance.now() - this.clock.arrivalMs;
+          const deltaUs = sample.tShowUs - this.lastTShowUs;
+          const allowUs = gapMs * 1000 + 150_000; // 50ms 采样节拍 + 100ms 余量
+          if (deltaUs < -50_000 || deltaUs > allowUs) {
+            this.fault = `时钟跳变 ${(deltaUs / 1e6).toFixed(2)}s（拒绝跟踪，就地保持）`;
+            return;
+          }
         }
+        this.clock = { tShowUs: sample.tShowUs, running: sample.running === true, arrivalMs: performance.now() };
       } catch {
         // 坏时钟样本直接忽略
       }
@@ -351,7 +363,7 @@ export class FakeRobot {
   }
 
   private handleCommand(json: string): void {
-    let cmd: { kind?: string; segmentId?: unknown };
+    let cmd: { kind?: string; segmentId?: unknown; tStartShowUs?: unknown };
     try {
       cmd = JSON.parse(json);
     } catch {
@@ -363,8 +375,11 @@ export class FakeRobot {
         this.frozen = true;
         if (cmd.kind === 'stop') {
           this.showStarted = false;
+          this.showStopped = true;
           this.showPath = null; // 演出结束：就地待命（不瞬移）
           this.lastTShowUs = 0;
+          this.tStartShowUs = 0;
+          this.fault = null;
         }
         break;
       case 'resume':
@@ -373,21 +388,41 @@ export class FakeRobot {
       case 'arm':
         this.showPath = this.demoPath();
         this.showStarted = false;
+        this.showStopped = false;
+        this.fault = null;
         break;
-      case 'start':
-        if (!this.showPath) this.showPath = this.demoPath();
+      case 'start': {
+        // 开演前置检查：必须已 arm（不自动装载——迟到的 start 不得让闲置机器人入场）、
+        // 且当前位姿就在路径起点附近（就位检查；真机开演前同样要求就位）
+        if (!this.showPath) {
+          this.fault = 'start 被拒绝：未先 arm';
+          break;
+        }
+        this.tStartShowUs = typeof cmd.tStartShowUs === 'number' ? cmd.tStartShowUs : 0;
+        const startPose = poseOnPathAt(this.showPath, this.tStartShowUs);
+        if (!startPose) {
+          this.fault = 'start 被拒绝：路径无效';
+          break;
+        }
+        const off = Math.hypot(this.curPose[0] - startPose.x, this.curPose[1] - startPose.y);
+        if (off > 0.15) {
+          this.fault = `start 被拒绝：距路径起点 ${off.toFixed(2)}m > 0.15m（需重新就位）`;
+          break;
+        }
+        this.fault = null;
         this.showStarted = true;
         this.frozen = false;
         break;
+      }
       default:
         break;
     }
   }
 
-  /** 内置演示演出的本机路径（Phase 3 编辑器落地前的占位编排） */
+  /** 内置演示演出的本机路径：按全队拓扑生成再取本机（与 console 预览同源同结果） */
   private demoPath(): RobotShowPath {
-    const show = createDemoShow([this.opts.team]);
-    return show.paths[0]!;
+    const show = createDemoShow(simTopology.teams());
+    return show.paths.find((p) => p.robot === this.opts.team) ?? show.paths[0]!;
   }
 
   private tick(): void {
@@ -397,23 +432,29 @@ export class FakeRobot {
 
     const clockFresh =
       this.clock !== null && performance.now() - this.clock.arrivalMs < SHOW_CLOCK_TIMEOUT_MS;
-    // 运动许可链：DS 使能（看门狗在 DsEndpoint）∧ NT 未冻结 ∧ 演出已开始 ∧ 时钟新鲜且在走
+    // 运动许可链（多重与，任何一环断即停，兜底方向单调）：DS 使能 ∧ NT 未冻结 ∧ 演出进行中
+    // （已开演 ∧ 到 tStart 时刻 ∧ 时钟新鲜且在走 ∧ 无故障）∧ 位姿在路径上
     const dsPermits = this.opts.freeRun || (this.ds?.enabled ?? false);
-    const moving =
-      dsPermits && !this.frozen && this.showPath !== null && this.showStarted &&
-      clockFresh && this.clock!.running;
+    const showPermits =
+      this.showPath !== null &&
+      this.showStarted &&
+      this.fault === null &&
+      clockFresh &&
+      this.clock!.running &&
+      this.clock!.tShowUs >= this.tStartShowUs;
+    const moving = dsPermits && !this.frozen && showPermits;
 
     if (this.opts.freeRun) {
       // 调试旁路：无视演出与时钟，椭圆漫游
       if (!this.frozen && dsPermits) this.simSeconds += dt;
-      this.curPose = [...this.poseAt(this.simSeconds), ] as [number, number, number];
+      this.curPose = [...this.poseAt(this.simSeconds)] as [number, number, number];
     } else if (this.showPath !== null && moving) {
       // 演出时钟驱动：样本间隔内本地推进，保持 20Hz 平滑
       this.lastTShowUs = this.clock!.tShowUs + (performance.now() - this.clock!.arrivalMs) * 1000;
       const p = poseOnPathAt(this.showPath, this.lastTShowUs);
       if (p) this.curPose = [p.x, p.y, p.heading];
     }
-    // 其余情况：就地保持（idle/held/断时钟/未使能——安全方向一律不动）
+    // 其余情况：就地保持（idle/stopped/held/断时钟/跳变/未使能——安全方向一律不动）
 
     const pose = this.topics.get(ntTopics.pose(this.opts.team));
     const health = this.topics.get(ntTopics.health(this.opts.team));
@@ -421,22 +462,23 @@ export class FakeRobot {
 
     const ts = this.serverUs();
     pose.lastTsUs = ts;
-    pose.lastValue = this.curPose;
+    // 位姿线格式 [tShowUs, x, y, heading]：PoseSample.tShowUs 语义 = 演出时钟采样时刻
+    // （NT 帧时间戳只是传输层信息，不进协议）
+    pose.lastValue = [Math.round(this.lastTShowUs), this.curPose[0], this.curPose[1], this.curPose[2]];
 
     const showState: 'idle' | 'armed' | 'running' | 'held' | 'stopped' =
-      this.showPath === null ? 'idle'
+      this.showPath === null ? (this.showStopped ? 'stopped' : 'idle')
       : !this.showStarted ? 'armed'
       : moving ? 'running'
-      : clockFresh && !this.clock!.running ? 'held'
-      : 'held'; // 断时钟也按 held 上报（clockLinked=false 供 UI 区分）
+      : 'held'; // 保持（原因看 clockLinked/dsLinked/fault；正常暂停=时钟 running=false）
     const hJson = JSON.stringify({
       dsLinked: this.ds?.dsLinked ?? false,
-      enabled: moving,
+      enabled: this.opts.freeRun ? true : (this.ds?.enabled ?? false),
       estopped: this.ds?.estopped ?? false,
       clockLinked: clockFresh,
       showState,
-      codeVersion: 'sim-0.3',
-      fault: null,
+      codeVersion: 'sim-0.4',
+      fault: this.fault,
     });
     const healthDirty = hJson !== String(health.lastValue);
     if (healthDirty) {

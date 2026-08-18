@@ -15,6 +15,8 @@ export interface ShowControl {
   phase: ShowPhase;
   /** 当前演出时钟（秒，供显示） */
   tShowSeconds: number;
+  /** 演出已到时长自动收尾（held 且不可 resume；操作员点「结束演出」撤使能） */
+  ended: boolean;
   start: () => void;
   hold: () => void;
   resume: () => void;
@@ -27,9 +29,11 @@ export function useShow(
   publishClock: (sample: ShowClockSample) => void,
   sendCommand: (robot: RobotId, cmd: { kind: 'start'; showId: string; tStartShowUs: number } | { kind: 'stop' } | { kind: 'arm'; showId: string; segmentId: number }) => void,
   teams: RobotId[],
+  durationShowUs: number,
 ): ShowControl {
   const [phase, setPhase] = useState<ShowPhase>('idle');
   const [tShowSeconds, setTShowSeconds] = useState(0);
+  const [ended, setEnded] = useState(false);
   /** 时基：running 起点的本地时刻与当时的 tShow 偏移 */
   const baseRef = useRef({ startMs: 0, baseUs: 0 });
   const phaseRef = useRef<ShowPhase>('idle');
@@ -37,13 +41,22 @@ export function useShow(
 
   const currentTShowUs = useCallback((): number => {
     const { startMs, baseUs } = baseRef.current;
-    if (phaseRef.current === 'running') return baseUs + (performance.now() - startMs) * 1000;
-    return baseUs;
-  }, []);
+    if (phaseRef.current === 'running') {
+      // 到演出时长自动收尾：时钟冻结在时长处（机器人保持），操作员再点「结束演出」撤使能
+      return Math.min(baseUs + (performance.now() - startMs) * 1000, durationShowUs);
+    }
+    return Math.min(baseUs, durationShowUs);
+  }, [durationShowUs]);
 
   useEffect(() => {
     const iv = setInterval(() => {
       const tShowUs = currentTShowUs();
+      if (phaseRef.current === 'running' && tShowUs >= durationShowUs) {
+        // 到点自动 hold（安全：不再无限期保持使能行驶完毕的机器人）
+        baseRef.current = { startMs: performance.now(), baseUs: durationShowUs };
+        setPhase('held');
+        setEnded(true);
+      }
       publishClock({
         tMonotonicUs: performance.now() * 1000,
         tShowUs,
@@ -52,10 +65,11 @@ export function useShow(
       setTShowSeconds(tShowUs / 1e6);
     }, CLOCK_PERIOD_MS);
     return () => clearInterval(iv);
-  }, [currentTShowUs, publishClock]);
+  }, [currentTShowUs, publishClock, durationShowUs]);
 
   const start = useCallback((): void => {
     baseRef.current = { startMs: performance.now(), baseUs: 0 };
+    setEnded(false);
     setPhase('running');
     for (const team of teams) {
       sendCommand(team, { kind: 'arm', showId: 'demo-wave', segmentId: 0 });
@@ -70,17 +84,18 @@ export function useShow(
   }, [currentTShowUs]);
 
   const resume = useCallback((): void => {
-    if (phaseRef.current !== 'held') return;
+    if (phaseRef.current !== 'held' || ended) return; // 已到时长不再续跑
     baseRef.current = { startMs: performance.now(), baseUs: currentTShowUs() };
     setPhase('running');
-  }, [currentTShowUs]);
+  }, [currentTShowUs, ended]);
 
   const stop = useCallback((): void => {
     setPhase('idle');
+    setEnded(false);
     baseRef.current = { startMs: performance.now(), baseUs: 0 };
     setTShowSeconds(0);
     for (const team of teams) sendCommand(team, { kind: 'stop' });
   }, [sendCommand, teams]);
 
-  return { phase, tShowSeconds, start, hold, resume, stop };
+  return { phase, tShowSeconds, ended, start, hold, resume, stop };
 }
