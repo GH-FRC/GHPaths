@@ -22,11 +22,12 @@ function RobotMarker({ state, index }: { state: RobotState; index: number }) {
         <polyline points={trail.map((p) => toScreen(p.x, p.y)).join(' ')} className="trail" />
       )}
       <g transform={`translate(${x} ${-y}) rotate(${headingDeg})`}>
-        <rect x={-fw} y={-fl} width={fw * 2} height={fl * 2} rx={0.05} className="robot-body" />
-        {/* 航向指示：车头短线 */}
-        <line x1={0} y1={-fl} x2={0} y2={-fl - 0.25} className="heading" />
+        {/* 车体：长轴沿局部 +x（rotate 后 +x 即航向方向） */}
+        <rect x={-fl} y={-fw} width={fl * 2} height={fw * 2} rx={0.05} className="robot-body" />
+        {/* 航向指示：车头短线（局部 +x 端） */}
+        <line x1={fl} y1={0} x2={fl + 0.3} y2={0} className="heading" />
       </g>
-      <text x={x} y={-y + fl + 0.45} textAnchor="middle" className="robot-label">
+      <text x={x} y={-y + fw + 0.45} textAnchor="middle" className="robot-label">
         {state.robot}
       </text>
     </g>

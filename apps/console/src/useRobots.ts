@@ -54,34 +54,30 @@ export function useRobots(): { robots: RobotState[]; sendCommand: (robot: RobotI
   useEffect(() => {
     const link = createNtLink();
     linkRef.current = link;
-    let disposed = false;
 
-    (async () => {
-      for (const team of simTopology.teams()) {
-        if (disposed) return;
-        const entry = entriesRef.current.get(team);
-        if (!entry) continue;
-        try {
-          const conn = await link.connectRobot(team, simTopology.wsUrl(team).replace('ws://', ''));
-          if (disposed) return;
-          entry.conn = conn;
-          conn.onStatus((s) => {
-            entry.connected = s === 'connected';
-          });
-          conn.onPose((p) => {
-            entry.pose = p;
-            entry.lastPoseMs = performance.now();
-            entry.trail.push({ x: p.xM, y: p.yM });
-            if (entry.trail.length > TRAIL_LIMIT) entry.trail.shift();
-          });
-          conn.onHealth((h) => {
-            entry.health = h;
-          });
-        } catch {
-          // 首连超时：保持 disconnected；连接对象内部持续重连，onStatus 稍后点亮
-        }
-      }
-    })();
+    // openRobot 同步返回连接对象：回调立即挂载，不因首连超时而丢失
+    // （先开 UI 后开 sim 的场景，画布在 sim 起来后自动点亮）
+    for (const team of simTopology.teams()) {
+      const entry = entriesRef.current.get(team);
+      if (!entry) continue;
+      const conn = link.openRobot(team, simTopology.wsUrl(team).replace('ws://', ''));
+      entry.conn = conn;
+      conn.onStatus((s) => {
+        entry.connected = s === 'connected';
+      });
+      conn.onPose((p) => {
+        entry.pose = p;
+        entry.lastPoseMs = performance.now();
+        entry.trail.push({ x: p.xM, y: p.yM });
+        if (entry.trail.length > TRAIL_LIMIT) entry.trail.shift();
+      });
+      conn.onHealth((h) => {
+        entry.health = h;
+      });
+      void conn.connect().catch(() => {
+        // 首连等待超时：内部自动重连，状态回调稍后点亮
+      });
+    }
 
     const flush = () => {
       const now = performance.now();
@@ -101,7 +97,6 @@ export function useRobots(): { robots: RobotState[]; sendCommand: (robot: RobotI
     };
     const timer = setInterval(flush, 100);
     return () => {
-      disposed = true;
       clearInterval(timer);
       link.closeAll();
       linkRef.current = null;
@@ -116,10 +111,9 @@ export function useRobots(): { robots: RobotState[]; sendCommand: (robot: RobotI
     }
     const link = linkRef.current;
     if (!link) return;
-    void link
-      .connectRobot(robot, simTopology.wsUrl(robot).replace('ws://', ''))
-      .then((conn) => conn.sendCommand(cmd))
-      .catch(() => undefined);
+    link
+      .openRobot(robot, simTopology.wsUrl(robot).replace('ws://', ''))
+      .sendCommand(cmd);
   };
 
   return { robots, sendCommand };

@@ -27,6 +27,14 @@ function parseArgs(argv: string[]): Options {
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
+  if (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > 99) {
+    console.error('--count 需要 1~99 的整数（端口派生自 team%100，>99 会撞端口）');
+    process.exit(1);
+  }
+  if (!Number.isInteger(opts.baseTeam) || opts.baseTeam < 1) {
+    console.error('--base-team 需要正整数队号');
+    process.exit(1);
+  }
   console.log(`fake-robot: 启动 ${opts.count} 台模拟机器人（队号 ${opts.baseTeam} 起，free-run=${opts.freeRun}）`);
   for (let i = 0; i < opts.count; i++) {
     const team = opts.baseTeam + i;

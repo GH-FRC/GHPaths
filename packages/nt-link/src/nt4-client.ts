@@ -64,11 +64,15 @@ export class Nt4Client {
   /** 重连后需要重发的订阅（subuid → 前缀列表） */
   private readonly subscriptions = new Map<number, string[]>();
   /** 重连后需要重发的发布（pubuid → {name, type}） */
-  private readonly publications = new Map<number, { name: string; type: string }>();
+  private readonly publications = new Map<number, { name: string; type: string; wireType?: string }>();
   private readonly pubuidByTopic = new Map<string, number>();
-  /** 时间同步完成前的待发值（规范 §Client Behavior：同步前不得发送带时间戳的值） */
+  /**
+   * 待发值（时间同步前 / 断线期间缓存）。演出命令幂等可重放（show-protocol），
+   * 每个 pubuid 只保留最新一条。首个 RTT 应答后统一补发。
+   */
+  private readonly pendingValues = new Map<number, [number, string]>();
   private timeSynced = false;
-  private readonly pendingValues: Array<[number, number, string]> = [];
+  private controlReplayed = false;
   private bestRttUs = Number.POSITIVE_INFINITY;
   private serverOffsetUs = 0;
   private lastReceiveMs = 0;
@@ -121,17 +125,18 @@ export class Nt4Client {
       this.pubuidByTopic.set(topicName, pubuid);
       this.sendJson({ method: 'publish', params: { name: topicName, pubuid, type, properties: {} } });
     }
-    this.sendValue(pubuid, TYPE_CODES[type] ?? 5, jsonString);
+    // 类型码以服务端 announce 宣告的实际类型为准（规范 §msg-publish）
+    const effective = this.publications.get(pubuid)?.wireType ?? type;
+    this.sendValue(pubuid, TYPE_CODES[effective] ?? 5, jsonString);
   }
 
   private sendValue(pubuid: number, typeCode: number, value: string): void {
-    if (this.status !== 'connected') return;
-    if (!this.timeSynced) {
-      // 首次 RTT 完成时统一补发（时间同步在连接后 1 个 RTT 内完成）
-      this.pendingValues.push([pubuid, typeCode, value]);
+    if (this.status !== 'connected' || !this.timeSynced) {
+      this.pendingValues.set(pubuid, [typeCode, value]);
       return;
     }
-    this.ws?.send(encode([pubuid, this.estimatedServerUs, typeCode, value]));
+    // 规范 §Timestamps：时间戳为整数微秒——真 ntcore 以 expect_i64 解码，浮点会被断连
+    this.ws?.send(encode([pubuid, Math.round(this.estimatedServerUs), typeCode, value]));
   }
 
   private connect(): void {
@@ -147,20 +152,12 @@ export class Nt4Client {
       this.topicsByName.clear();
       this.bestRttUs = Number.POSITIVE_INFINITY;
       this.timeSynced = false;
+      this.controlReplayed = false;
       this.lastReceiveMs = performance.now();
-      // 先置状态再重放（sendJson 只在 connected 态发送）
       this.setStatus('connected');
-      // 规范建议：先做 RTT 测量再发其他控制消息（§Client Behavior）
+      // 规范建议先做 RTT 测量再发其他控制消息（§Client Behavior）；
+      // publish/subscribe 重放推迟到首个 RTT 应答后（见 handleBinary）
       this.sendRtt();
-      for (const [pubuid, pub] of this.publications) {
-        this.sendJson({ method: 'publish', params: { name: pub.name, pubuid, type: pub.type, properties: {} } });
-      }
-      for (const [subuid, prefixes] of this.subscriptions) {
-        this.sendJson({
-          method: 'subscribe',
-          params: { topics: prefixes, subuid, options: { prefix: true, periodic: 0.05 } },
-        });
-      }
       this.rttTimer = setInterval(() => {
         this.sendRtt();
         // 活性检查（浏览器无法主动发 WS PING，用 RTT 流量代替；规范 §aliveness）
@@ -206,6 +203,20 @@ export class Nt4Client {
           const info: Nt4TopicInfo = { name, id, type };
           this.topicsById.set(id, info);
           this.topicsByName.set(name, info);
+          // 规范 §msg-publish：发布值类型以服务端宣告的实际类型为准
+          const pubuid = this.pubuidByTopic.get(name);
+          if (pubuid !== undefined) {
+            const local = this.publications.get(pubuid);
+            if (local && local.type !== type) {
+              if ((TYPE_CODES[type] ?? 5) === (TYPE_CODES[local.type] ?? 5)) {
+                local.wireType = type; // 同码不同名（如 json/string）：采用服务端类型
+              } else {
+                console.warn(
+                  `[nt-link] topic ${name} 服务端类型 ${type} 与本地 ${local.type} 不兼容，值可能被忽略`,
+                );
+              }
+            }
+          }
         }
       } else if (method === 'unannounce') {
         const { name, id } = params as { name?: unknown; id?: unknown };
@@ -235,9 +246,14 @@ export class Nt4Client {
           this.bestRttUs = rtt;
           this.serverOffsetUs = ts + rtt / 2 - localUs();
           this.timeSynced = true;
-          const queued = this.pendingValues.splice(0);
-          for (const [pubuid, typeCode, value] of queued) {
-            this.sendValue(pubuid, typeCode, value);
+          const queued = [...this.pendingValues.entries()];
+          this.pendingValues.clear();
+          for (const [pubuid, [typeCode, valueText]] of queued) {
+            this.sendValue(pubuid, typeCode, valueText);
+          }
+          if (!this.controlReplayed) {
+            this.controlReplayed = true;
+            this.replayControl();
           }
         }
         continue;
@@ -252,6 +268,19 @@ export class Nt4Client {
   private sendRtt(): void {
     if (this.status !== 'connected') return;
     this.ws?.send(encode([-1, 0, 1, localUs()]));
+  }
+
+  /** 连接建立且时钟同步后，重放全部 publish/subscribe 控制帧 */
+  private replayControl(): void {
+    for (const [pubuid, pub] of this.publications) {
+      this.sendJson({ method: 'publish', params: { name: pub.name, pubuid, type: pub.type, properties: {} } });
+    }
+    for (const [subuid, prefixes] of this.subscriptions) {
+      this.sendJson({
+        method: 'subscribe',
+        params: { topics: prefixes, subuid, options: { prefix: true, periodic: 0.05 } },
+      });
+    }
   }
 
   private sendJson(msg: unknown): void {

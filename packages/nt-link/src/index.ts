@@ -32,6 +32,9 @@ export interface RobotConnection {
 }
 
 export interface NtLink {
+  /** 同步取连接对象（不存在则创建并开始连接）：回调可立即挂载，不等待首连成功 */
+  openRobot(robot: RobotId, address: string): RobotConnection;
+  /** 等待连接成功（超时约 10s 报错；连接对象本身持续重连，可稍后重试） */
   connectRobot(robot: RobotId, address: string): Promise<RobotConnection>;
   closeAll(): void;
 }
@@ -64,10 +67,9 @@ class RobotConnectionImpl implements RobotConnection {
   }
 
   connect(): Promise<void> {
-    // Nt4Client 在构造时已开始连接；此处等待首个连接成功（10s 超时则报错，由调用方决定重试策略）
+    // Nt4Client 在构造时已开始连接；此处等待首个连接成功（10s 超时则报错，连接对象仍会持续重连）
     if (this.client.connected) return Promise.resolve();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`连接 ${this.address} 超时`)), 10_000);
       const off = this.onStatus((s) => {
         if (s === 'connected') {
           clearTimeout(timer);
@@ -75,6 +77,10 @@ class RobotConnectionImpl implements RobotConnection {
           resolve();
         }
       });
+      const timer = setTimeout(() => {
+        off();
+        reject(new Error(`连接 ${this.address} 超时`));
+      }, 10_000);
     });
   }
 
@@ -129,15 +135,17 @@ class RobotConnectionImpl implements RobotConnection {
 class NtLinkImpl implements NtLink {
   private readonly connections = new Map<RobotId, RobotConnectionImpl>();
 
-  async connectRobot(robot: RobotId, address: string): Promise<RobotConnection> {
+  openRobot(robot: RobotId, address: string): RobotConnection {
     const existing = this.connections.get(robot);
-    if (existing && existing.address === address) {
-      await existing.connect();
-      return existing;
-    }
+    if (existing && existing.address === address) return existing;
     if (existing) existing.close();
     const conn = new RobotConnectionImpl(robot, address);
     this.connections.set(robot, conn);
+    return conn;
+  }
+
+  async connectRobot(robot: RobotId, address: string): Promise<RobotConnection> {
+    const conn = this.openRobot(robot, address);
     await conn.connect();
     return conn;
   }
