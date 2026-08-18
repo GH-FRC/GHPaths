@@ -69,6 +69,8 @@ export const ntTopics = {
 /**
  * sim 开发回路的拓扑约定（ADR-0005）：console 与 fake-robot 共用此推导。
  * 真实机器人 NT4 服务端在 5810；模拟机器人各自占用 15801~15806（本机回环）。
+ * DS 链路同理：真机 DS 端在 10.TE.AM.5、机器人在 10.TE.AM.2（UDP 1110/1150）；
+ * sim 用 127.0.0.0/8 的不同回环地址一一对应模拟（一台机器内互不冲突，结构同真机）。
  */
 export const simTopology = {
   teamBase: 9001,
@@ -77,7 +79,55 @@ export const simTopology = {
   teams(): RobotId[] {
     return Array.from({ length: this.count }, (_, i) => this.teamBase + i);
   },
+  /** 模拟机器人 NT4 服务端端口（对应真机 5810） */
+  wsPort(team: RobotId): number {
+    return this.wsPortBase + (team % 100);
+  },
   wsUrl(team: RobotId): string {
-    return `ws://127.0.0.1:${this.wsPortBase + (team % 100)}`;
+    return `ws://127.0.0.1:${this.wsPort(team)}`;
+  },
+  /** sim 用端口区分 6 台互不相干的端点（macOS 127/8 其余地址默认不可 bind）。
+   *  真机模式不用这些端口：DS 固定 1110/1150、按 10.TE.AM.5 alias 区分（LogicalDs 默认配置）。 */
+  robotDsControlPort(team: RobotId): number {
+    return 15100 + (team % 100);
+  },
+  dsControlPort(team: RobotId): number {
+    return 15000 + (team % 100);
+  },
+  /** 模拟机器人的 DS 端点地址（对应真机 10.TE.AM.2） */
+  robotDsHost(team: RobotId): string {
+    return `127.0.0.${101 + (team % 100) - 1}`;
+  },
+  /** 模拟逻辑 DS 的本地绑定地址（对应真机 10.TE.AM.5） */
+  dsHost(team: RobotId): string {
+    return `127.0.0.${11 + (team % 100) - 1}`;
   },
 } as const;
+
+/** multi-DS 控制 API 端口（仅 localhost；ADR-0002） */
+export const MULTI_DS_CONTROL_PORT = 5899;
+
+/** UI → multi-DS 控制 API 消息（ws://127.0.0.1:5899，JSON） */
+export type MultiDsControl =
+  | { type: 'enable'; team: RobotId }
+  | { type: 'disable'; team: RobotId }
+  | { type: 'estop'; team: RobotId }
+  | { type: 'clearEstop'; team: RobotId }
+  | { type: 'enableAll' }
+  | { type: 'disableAll' }
+  | { type: 'estopAll' }
+  | { type: 'uiPing' };
+
+/** multi-DS → UI 状态广播（约 10Hz） */
+export interface MultiDsRobotStatus {
+  team: RobotId;
+  state: 'disabled' | 'enabled' | 'estopped';
+  /** 500ms 内收到机器人状态包视为链路在线 */
+  linked: boolean;
+  batteryVolts: number;
+}
+
+export interface MultiDsStatusMsg {
+  type: 'status';
+  robots: MultiDsRobotStatus[];
+}

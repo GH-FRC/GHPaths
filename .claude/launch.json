@@ -5,7 +5,8 @@
       "name": "console",
       "runtimeExecutable": "/opt/homebrew/bin/npm",
       "runtimeArgs": ["--prefix", "/Users/lyt/Desktop/GHFRC/GHPaths", "run", "dev", "-w", "@ghpaths/console"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

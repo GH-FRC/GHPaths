@@ -67,9 +67,22 @@ button:hover {
   background: #262d36;
 }
 
-.stop-all {
+.stop-all,
+.estop-btn {
   border-color: #6e2a2a;
   color: #ff7b72;
+}
+
+.card-state.estop {
+  color: #ff7b72;
+  font-weight: 700;
+}
+
+.card-batt {
+  color: #7ee787;
+  font-size: 12px;
+  min-width: 34px;
+  text-align: right;
 }
 
 .stage-wrap {

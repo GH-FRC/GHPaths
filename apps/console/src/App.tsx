@@ -1,5 +1,7 @@
 import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
+import type { MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
+import { useMultiDs } from './useMultiDs';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -34,8 +36,17 @@ function RobotMarker({ state, index }: { state: RobotState; index: number }) {
   );
 }
 
+function dsStateText(ds: MultiDsRobotStatus | undefined, ntLive: boolean): string {
+  if (!ds) return 'multi-DS 未连';
+  if (ds.state === 'estopped') return '急停';
+  if (!ds.linked) return '失联';
+  if (ds.state === 'enabled') return ntLive ? '运动中' : '已使能';
+  return '未使能';
+}
+
 export function App() {
   const { robots, sendCommand } = useRobots();
+  const multiDs = useMultiDs();
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
@@ -48,19 +59,20 @@ export function App() {
         <span className={`badge ${allLive ? 'ok' : liveCount > 0 ? 'warn' : ''}`}>
           {liveCount}/{robots.length} 在线
         </span>
-        <span className="badge">sim 回路</span>
+        <span className={`badge ${multiDs.connected ? 'ok' : 'warn'}`}>
+          multi-DS {multiDs.connected ? '已连' : '未连'}
+        </span>
         <div className="spacer" />
+        <button onClick={() => multiDs.send({ type: 'enableAll' })}>全部使能</button>
+        <button onClick={() => multiDs.send({ type: 'disableAll' })}>全部失能</button>
         <button
           className="stop-all"
-          onClick={() => robots.forEach((r) => sendCommand(r.robot, { kind: 'stop' }))}
+          onClick={() => {
+            multiDs.send({ type: 'estopAll' });
+            robots.forEach((r) => sendCommand(r.robot, { kind: 'stop' }));
+          }}
         >
-          全部停止
-        </button>
-        <button
-          className="resume-all"
-          onClick={() => robots.forEach((r) => sendCommand(r.robot, { kind: 'resume' }))}
-        >
-          全部恢复
+          急停全部
         </button>
       </header>
 
@@ -81,20 +93,37 @@ export function App() {
         {liveCount === 0 && (
           <p className="hint">未检测到模拟机器人 —— 先在仓库根目录运行 <code>npm run sim</code>。</p>
         )}
+        {liveCount > 0 && !multiDs.connected && (
+          <p className="hint">机器人已连 NT，但 multi-DS 未连接 —— 运行 <code>npm run ds</code> 后即可使能。</p>
+        )}
       </section>
 
       <section className="panel">
-        {robots.map((r, i) => (
-          <div key={r.robot} className={`robot-card ${r.live ? '' : 'offline'}`}>
-            <span className={`dot robot-dot-${i + 1}`} data-on={r.live} />
-            <span className="card-team">{r.robot}</span>
-            <span className="card-state">
-              {!r.connected ? '连接中' : !r.live ? '无数据' : r.health?.enabled === false ? '已冻结' : '运行中'}
-            </span>
-            <button onClick={() => sendCommand(r.robot, { kind: 'stop' })}>停</button>
-            <button onClick={() => sendCommand(r.robot, { kind: 'resume' })}>走</button>
-          </div>
-        ))}
+        {robots.map((r, i) => {
+          const ds = multiDs.robots.get(r.robot);
+          return (
+            <div key={r.robot} className={`robot-card ${r.live ? '' : 'offline'}`}>
+              <span className={`dot robot-dot-${i + 1}`} data-on={r.live} />
+              <span className="card-team">{r.robot}</span>
+              <span className={`card-state ${ds?.state === 'estopped' ? 'estop' : ''}`}>
+                {dsStateText(ds, r.live)}
+              </span>
+              {ds?.state === 'estopped' ? (
+                <button onClick={() => multiDs.send({ type: 'clearEstop', team: r.robot })}>解除急停</button>
+              ) : (
+                <>
+                  <button onClick={() => multiDs.send({ type: ds?.state === 'enabled' ? 'disable' : 'enable', team: r.robot })}>
+                    {ds?.state === 'enabled' ? '失能' : '使能'}
+                  </button>
+                  <button className="estop-btn" onClick={() => multiDs.send({ type: 'estop', team: r.robot })}>
+                    急停
+                  </button>
+                </>
+              )}
+              <span className="card-batt">{ds?.linked ? `${ds.batteryVolts.toFixed(1)}V` : ''}</span>
+            </div>
+          );
+        })}
       </section>
     </main>
   );

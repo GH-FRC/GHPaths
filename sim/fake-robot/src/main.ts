@@ -1,10 +1,10 @@
 // fake-robot —— 无硬件开发回路的模拟机器人入口（ADR-0005）。
 //
-// 每台模拟机器人 = NT4 服务端（位姿/健康发布 + 命令接收）。DS 端点模拟属 Phase 0。
-// 运行：npm run sim [-- --count 6 --base-team 9001 --no-free-run]
-//   --count N        启动 N 台（默认 6）
-//   --base-team T    队号起点（默认 9001）
-//   --no-free-run    冻结直到收到 start/resume 命令（默认 free-run：启动即漫游）
+// 每台模拟机器人 = NT4 服务端（位姿/健康 + 命令）+ DS 端点（UDP 1110/1150，roboRIO 看门狗语义）。
+// 默认运动受 DS 使能门控（free-run=false）：先 npm run ds 再在 UI 里使能，机器人才动。
+// --free-run 为调试旁路（无视 DS，启动即漫游）——排障用，勿当正常模式。
+//
+// 运行：npm run sim [-- --count 6 --base-team 9001 --free-run]
 import { FakeRobot } from './robot.ts';
 import { simTopology } from '@ghpaths/show-protocol';
 
@@ -15,12 +15,12 @@ interface Options {
 }
 
 function parseArgs(argv: string[]): Options {
-  const opts: Options = { count: simTopology.count, baseTeam: simTopology.teamBase, freeRun: true };
+  const opts: Options = { count: simTopology.count, baseTeam: simTopology.teamBase, freeRun: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--count') opts.count = Number(argv[++i]);
     else if (a === '--base-team') opts.baseTeam = Number(argv[++i]);
-    else if (a === '--no-free-run') opts.freeRun = false;
+    else if (a === '--free-run') opts.freeRun = true;
   }
   return opts;
 }
@@ -45,7 +45,11 @@ async function main(): Promise<void> {
       freeRun: opts.freeRun,
     });
     await robot.start();
-    console.log(`  team ${team} → ${simTopology.wsUrl(team)}/nt/…`);
+    const dsInfo = opts.freeRun ? '（free-run：无 DS 端点）' : `，DS 端点 :${simTopology.robotDsControlPort(team)}`;
+    console.log(`  team ${team} → NT4 ${simTopology.wsUrl(team)}${dsInfo}`);
+  }
+  if (!opts.freeRun) {
+    console.log('运动受 DS 使能门控：npm run ds 启动 multi-DS，再在演控台 UI 中使能。');
   }
   console.log('就绪。Ctrl-C 退出。');
 }

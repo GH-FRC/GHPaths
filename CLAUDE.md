@@ -22,7 +22,7 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 
 ## 工作流
 
-- 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启；**注意 type stripping 是 strip-only 模式：禁止 TS 参数属性（`constructor(private x)`）等需要代码变换的语法**，相对导入必须写 `.ts` 扩展名）。常用命令（根目录执行）：`npm install`（一次）、`npm run sim`（模拟机器人）、`npm run dev`（console UI）、`npm run probe`（sim 回路自检）、`npm run typecheck`（全仓）、`npm run build`；
+- 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启；**注意 type stripping 是 strip-only 模式：禁止 TS 参数属性（`constructor(private x)`）等需要代码变换的语法**，相对导入必须写 `.ts` 扩展名）。常用命令（根目录执行）：`npm install`（一次）、`npm run sim`（模拟机器人）、`npm run ds`（multi-DS 进程）、`npm run dev`（console UI）、`npm run probe` / `npm run probe:ds`（回路自检）、`npm run typecheck`（全仓）、`npm run build`；
 - 任何改动完成后必须过 `npm run typecheck`；
 - 目录速览：`apps/console`（UI）· `packages/{show-protocol,field-model,nt-link,multi-ds}` · `sim/fake-robot` · `robot/`（Phase 0 生成）· `docs/`（architecture / decisions(ADR) / protocol / phase0-checklist）· `scripts/`；
 - 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）；
