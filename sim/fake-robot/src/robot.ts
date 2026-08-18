@@ -14,7 +14,8 @@
 import { createServer } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { encode, decodeMulti } from '@msgpack/msgpack';
-import { ntTopics, simTopology, type RobotId } from '@ghpaths/show-protocol';
+import { ntTopics, simTopology, SHOW_CLOCK_TIMEOUT_MS, type RobotId } from '@ghpaths/show-protocol';
+import { createDemoShow, poseOnPathAt, type RobotShowPath } from '@ghpaths/field-model';
 import { DsEndpoint } from './ds-endpoint.ts';
 
 const SUBPROTO_41 = 'v4.1.networktables.first.wpi.edu';
@@ -67,11 +68,20 @@ export class FakeRobot {
   private wss: WebSocketServer | null = null;
   /** DS 端点（free-run=false 时创建）：运动许可的权威来源 */
   private ds: DsEndpoint | null = null;
+  /** 演出驱动状态（show-time 语义见 show-protocol） */
+  private showPath: RobotShowPath | null = null;
+  private showStarted = false;
+  private clock: { tShowUs: number; running: boolean; arrivalMs: number } | null = null;
+  private lastTShowUs = 0;
+  private curPose: [number, number, number];
 
   private readonly opts: FakeRobotOptions;
 
   constructor(opts: FakeRobotOptions) {
     this.opts = opts;
+    // 待命位：舞台前区一字排开
+    const i = (opts.team % 100) - 1;
+    this.curPose = [-3.5 + i * 1.4, -3.0, 0];
   }
 
   async start(): Promise<void> {
@@ -261,7 +271,17 @@ export class FakeRobot {
     for (const other of this.openClients()) {
       if (other !== ws) other.send(raw);
     }
-    if (name === ntTopics.command(this.opts.team) && typeof value === 'string') {
+    if (typeof value !== 'string') return;
+    if (name === ntTopics.clock) {
+      try {
+        const sample = JSON.parse(value) as { tShowUs?: unknown; running?: unknown };
+        if (typeof sample.tShowUs === 'number') {
+          this.clock = { tShowUs: sample.tShowUs, running: sample.running === true, arrivalMs: performance.now() };
+        }
+      } catch {
+        // 坏时钟样本直接忽略
+      }
+    } else if (name === ntTopics.command(this.opts.team)) {
       this.handleCommand(value);
     }
   }
@@ -331,23 +351,69 @@ export class FakeRobot {
   }
 
   private handleCommand(json: string): void {
-    let cmd: { kind?: string };
+    let cmd: { kind?: string; segmentId?: unknown };
     try {
       cmd = JSON.parse(json);
     } catch {
       return;
     }
-    if (cmd.kind === 'stop' || cmd.kind === 'hold') this.frozen = true;
-    else if (cmd.kind === 'start' || cmd.kind === 'resume') this.frozen = false;
+    switch (cmd.kind) {
+      case 'stop':
+      case 'hold':
+        this.frozen = true;
+        if (cmd.kind === 'stop') {
+          this.showStarted = false;
+          this.showPath = null; // 演出结束：就地待命（不瞬移）
+          this.lastTShowUs = 0;
+        }
+        break;
+      case 'resume':
+        this.frozen = false;
+        break;
+      case 'arm':
+        this.showPath = this.demoPath();
+        this.showStarted = false;
+        break;
+      case 'start':
+        if (!this.showPath) this.showPath = this.demoPath();
+        this.showStarted = true;
+        this.frozen = false;
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** 内置演示演出的本机路径（Phase 3 编辑器落地前的占位编排） */
+  private demoPath(): RobotShowPath {
+    const show = createDemoShow([this.opts.team]);
+    return show.paths[0]!;
   }
 
   private tick(): void {
     const nowNs = process.hrtime.bigint();
     const dt = Number(nowNs - this.lastTickNs) / 1e9;
     this.lastTickNs = nowNs;
-    // 运动许可：free-run 调试旁路，或 DS 端点在线且使能（看门狗语义在 DsEndpoint 内）
-    const motionPermitted = this.opts.freeRun || (this.ds?.enabled ?? false);
-    if (!this.frozen && motionPermitted) this.simSeconds += dt;
+
+    const clockFresh =
+      this.clock !== null && performance.now() - this.clock.arrivalMs < SHOW_CLOCK_TIMEOUT_MS;
+    // 运动许可链：DS 使能（看门狗在 DsEndpoint）∧ NT 未冻结 ∧ 演出已开始 ∧ 时钟新鲜且在走
+    const dsPermits = this.opts.freeRun || (this.ds?.enabled ?? false);
+    const moving =
+      dsPermits && !this.frozen && this.showPath !== null && this.showStarted &&
+      clockFresh && this.clock!.running;
+
+    if (this.opts.freeRun) {
+      // 调试旁路：无视演出与时钟，椭圆漫游
+      if (!this.frozen && dsPermits) this.simSeconds += dt;
+      this.curPose = [...this.poseAt(this.simSeconds), ] as [number, number, number];
+    } else if (this.showPath !== null && moving) {
+      // 演出时钟驱动：样本间隔内本地推进，保持 20Hz 平滑
+      this.lastTShowUs = this.clock!.tShowUs + (performance.now() - this.clock!.arrivalMs) * 1000;
+      const p = poseOnPathAt(this.showPath, this.lastTShowUs);
+      if (p) this.curPose = [p.x, p.y, p.heading];
+    }
+    // 其余情况：就地保持（idle/held/断时钟/未使能——安全方向一律不动）
 
     const pose = this.topics.get(ntTopics.pose(this.opts.team));
     const health = this.topics.get(ntTopics.health(this.opts.team));
@@ -355,14 +421,21 @@ export class FakeRobot {
 
     const ts = this.serverUs();
     pose.lastTsUs = ts;
-    pose.lastValue = this.poseAt(this.simSeconds);
+    pose.lastValue = this.curPose;
 
-    const moving = !this.frozen && motionPermitted;
+    const showState: 'idle' | 'armed' | 'running' | 'held' | 'stopped' =
+      this.showPath === null ? 'idle'
+      : !this.showStarted ? 'armed'
+      : moving ? 'running'
+      : clockFresh && !this.clock!.running ? 'held'
+      : 'held'; // 断时钟也按 held 上报（clockLinked=false 供 UI 区分）
     const hJson = JSON.stringify({
       dsLinked: this.ds?.dsLinked ?? false,
       enabled: moving,
       estopped: this.ds?.estopped ?? false,
-      codeVersion: 'sim-0.2',
+      clockLinked: clockFresh,
+      showState,
+      codeVersion: 'sim-0.3',
       fault: null,
     });
     const healthDirty = hJson !== String(health.lastValue);

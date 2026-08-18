@@ -1,7 +1,9 @@
-import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
-import type { MultiDsRobotStatus } from '@ghpaths/show-protocol';
+import { useMemo } from 'react';
+import { createDemoShow, DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
+import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
 import { useMultiDs } from './useMultiDs';
+import { useShow } from './useShow';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -36,17 +38,23 @@ function RobotMarker({ state, index }: { state: RobotState; index: number }) {
   );
 }
 
-function dsStateText(ds: MultiDsRobotStatus | undefined, ntLive: boolean): string {
+function dsStateText(ds: MultiDsRobotStatus | undefined, ntLive: boolean, showState?: string): string {
   if (!ds) return 'multi-DS 未连';
   if (ds.state === 'estopped') return '急停';
   if (!ds.linked) return '失联';
-  if (ds.state === 'enabled') return ntLive ? '运动中' : '已使能';
+  if (ds.state === 'enabled') {
+    if (showState === 'held') return '保持中';
+    return ntLive ? '运动中' : '已使能';
+  }
   return '未使能';
 }
 
 export function App() {
-  const { robots, sendCommand } = useRobots();
+  const { robots, sendCommand, publishClock } = useRobots();
   const multiDs = useMultiDs();
+  const teams = useMemo(() => simTopology.teams(), []);
+  const demoShow = useMemo(() => createDemoShow(teams), [teams]);
+  const show = useShow(publishClock, sendCommand, teams);
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
@@ -62,18 +70,38 @@ export function App() {
         <span className={`badge ${multiDs.connected ? 'ok' : 'warn'}`}>
           multi-DS {multiDs.connected ? '已连' : '未连'}
         </span>
+        <span className={`badge ${show.phase === 'running' ? 'ok' : show.phase === 'held' ? 'warn' : ''}`}>
+          {show.phase === 'idle' ? '演出未启动' : `⏱ ${show.tShowSeconds.toFixed(1)}s${show.phase === 'held' ? '（已暂停）' : ''}`}
+        </span>
         <div className="spacer" />
-        <button onClick={() => multiDs.send({ type: 'enableAll' })}>全部使能</button>
-        <button onClick={() => multiDs.send({ type: 'disableAll' })}>全部失能</button>
-        <button
-          className="stop-all"
-          onClick={() => {
-            multiDs.send({ type: 'estopAll' });
-            robots.forEach((r) => sendCommand(r.robot, { kind: 'stop' }));
-          }}
-        >
-          急停全部
-        </button>
+        {show.phase === 'idle' ? (
+          <button
+            className="show-start"
+            onClick={() => {
+              multiDs.send({ type: 'enableAll' });
+              show.start();
+            }}
+          >
+            启动演出
+          </button>
+        ) : (
+          <>
+            {show.phase === 'running' ? (
+              <button onClick={() => show.hold()}>暂停</button>
+            ) : (
+              <button onClick={() => show.resume()}>继续</button>
+            )}
+            <button
+              className="stop-all"
+              onClick={() => {
+                show.stop();
+                multiDs.send({ type: 'disableAll' });
+              }}
+            >
+              结束演出
+            </button>
+          </>
+        )}
       </header>
 
       <section className="stage-wrap">
@@ -86,6 +114,14 @@ export function App() {
             height={fence.depthM}
             className="geofence"
           />
+          {/* 编排路径预览（Phase 3 编辑器落地前用内置演示演出） */}
+          {demoShow.paths.map((p, i) => (
+            <polyline
+              key={`path-${p.robot}`}
+              points={p.waypoints.map((wp) => toScreen(wp.xM, wp.yM)).join(' ')}
+              className={`path-preview robot-path-${i + 1}`}
+            />
+          ))}
           {robots.map((r, i) => (
             <RobotMarker key={r.robot} state={r} index={i} />
           ))}
@@ -95,6 +131,9 @@ export function App() {
         )}
         {liveCount > 0 && !multiDs.connected && (
           <p className="hint">机器人已连 NT，但 multi-DS 未连接 —— 运行 <code>npm run ds</code> 后即可使能。</p>
+        )}
+        {liveCount > 0 && multiDs.connected && show.phase === 'idle' && (
+          <p className="hint">就绪 —— 点「启动演出」开演（使能 + 时钟 + 路径一起走）。</p>
         )}
       </section>
 
@@ -106,7 +145,7 @@ export function App() {
               <span className={`dot robot-dot-${i + 1}`} data-on={r.live} />
               <span className="card-team">{r.robot}</span>
               <span className={`card-state ${ds?.state === 'estopped' ? 'estop' : ''}`}>
-                {dsStateText(ds, r.live)}
+                {dsStateText(ds, r.live, r.health?.showState)}
               </span>
               {ds?.state === 'estopped' ? (
                 <button onClick={() => multiDs.send({ type: 'clearEstop', team: r.robot })}>解除急停</button>

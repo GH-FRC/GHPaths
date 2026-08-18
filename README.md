@@ -31,6 +31,8 @@ npm run typecheck  # 全仓类型检查
 npm run build      # 构建 console UI
 ```
 
+**演出操作注意**：演控台保持前台。浏览器会把后台标签页的定时器节流到约 1 次/分钟 → uiPing 停发 → multi-DS 2s 宽限期触发自动全停（安全设计：控制台无人值守即停机）。
+
 ## 开发约定
 
 见 [CLAUDE.md](CLAUDE.md)——许可证红线（OpenDS 只读）、2026 冻结栈、架构不变量、工作流。架构与选型决策记录在 `docs/decisions/`（ADR）。

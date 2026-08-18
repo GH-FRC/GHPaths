@@ -78,6 +78,25 @@ button:hover {
   font-weight: 700;
 }
 
+.show-start {
+  border-color: #1f4d2b;
+  color: #7ee787;
+}
+
+.path-preview {
+  fill: none;
+  stroke-width: 0.035;
+  stroke-dasharray: 0.18 0.16;
+  opacity: 0.5;
+}
+
+.robot-path-1 { stroke: #ff7b72; }
+.robot-path-2 { stroke: #ffa657; }
+.robot-path-3 { stroke: #f2cc60; }
+.robot-path-4 { stroke: #7ee787; }
+.robot-path-5 { stroke: #79c0ff; }
+.robot-path-6 { stroke: #d2a8ff; }
+
 .card-batt {
   color: #7ee787;
   font-size: 12px;

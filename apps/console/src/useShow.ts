@@ -1,0 +1,86 @@
+/**
+ * useShow —— 演出时钟与演出命令（show-time 语义的唯一 UI 侧实现，见 show-protocol）。
+ *
+ * 时钟：10Hz 向全部机器人广播 ShowClockSample；running=false 时 tShow 冻结（hold 语义
+ * 靠时钟本身实现，机器人不需要 hold/resume 命令）。
+ * 命令：start → arm 隐含 + 各机 start(tStart)；stop → 各机 stop。
+ * UI 断连/卸载时停止广播 → 机器人 750ms 内断时钟自动停（安全链一环）。
+ */
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RobotId, ShowClockSample } from '@ghpaths/show-protocol';
+
+export type ShowPhase = 'idle' | 'running' | 'held';
+
+export interface ShowControl {
+  phase: ShowPhase;
+  /** 当前演出时钟（秒，供显示） */
+  tShowSeconds: number;
+  start: () => void;
+  hold: () => void;
+  resume: () => void;
+  stop: () => void;
+}
+
+const CLOCK_PERIOD_MS = 100;
+
+export function useShow(
+  publishClock: (sample: ShowClockSample) => void,
+  sendCommand: (robot: RobotId, cmd: { kind: 'start'; showId: string; tStartShowUs: number } | { kind: 'stop' } | { kind: 'arm'; showId: string; segmentId: number }) => void,
+  teams: RobotId[],
+): ShowControl {
+  const [phase, setPhase] = useState<ShowPhase>('idle');
+  const [tShowSeconds, setTShowSeconds] = useState(0);
+  /** 时基：running 起点的本地时刻与当时的 tShow 偏移 */
+  const baseRef = useRef({ startMs: 0, baseUs: 0 });
+  const phaseRef = useRef<ShowPhase>('idle');
+  phaseRef.current = phase;
+
+  const currentTShowUs = useCallback((): number => {
+    const { startMs, baseUs } = baseRef.current;
+    if (phaseRef.current === 'running') return baseUs + (performance.now() - startMs) * 1000;
+    return baseUs;
+  }, []);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const tShowUs = currentTShowUs();
+      publishClock({
+        tMonotonicUs: performance.now() * 1000,
+        tShowUs,
+        running: phaseRef.current === 'running',
+      });
+      setTShowSeconds(tShowUs / 1e6);
+    }, CLOCK_PERIOD_MS);
+    return () => clearInterval(iv);
+  }, [currentTShowUs, publishClock]);
+
+  const start = useCallback((): void => {
+    baseRef.current = { startMs: performance.now(), baseUs: 0 };
+    setPhase('running');
+    for (const team of teams) {
+      sendCommand(team, { kind: 'arm', showId: 'demo-wave', segmentId: 0 });
+      sendCommand(team, { kind: 'start', showId: 'demo-wave', tStartShowUs: 0 });
+    }
+  }, [sendCommand, teams]);
+
+  const hold = useCallback((): void => {
+    if (phaseRef.current !== 'running') return;
+    baseRef.current = { startMs: performance.now(), baseUs: currentTShowUs() };
+    setPhase('held');
+  }, [currentTShowUs]);
+
+  const resume = useCallback((): void => {
+    if (phaseRef.current !== 'held') return;
+    baseRef.current = { startMs: performance.now(), baseUs: currentTShowUs() };
+    setPhase('running');
+  }, [currentTShowUs]);
+
+  const stop = useCallback((): void => {
+    setPhase('idle');
+    baseRef.current = { startMs: performance.now(), baseUs: 0 };
+    setTShowSeconds(0);
+    for (const team of teams) sendCommand(team, { kind: 'stop' });
+  }, [sendCommand, teams]);
+
+  return { phase, tShowSeconds, start, hold, resume, stop };
+}

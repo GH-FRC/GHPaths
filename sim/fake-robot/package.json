@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ghpaths/field-model": "*",
     "@ghpaths/multi-ds": "*",
     "@ghpaths/nt-link": "*",
     "@ghpaths/show-protocol": "*",

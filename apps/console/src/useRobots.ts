@@ -2,9 +2,15 @@
  * useRobots —— console 的机器人连接层：经 nt-link 连接全部模拟机器人，
  * 维护位姿/健康/轨迹状态，定时器节流刷新到 React（20Hz 位姿流不逐帧 setState）。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createNtLink, type NtLink, type RobotConnection } from '@ghpaths/nt-link';
-import { simTopology, type PoseSample, type RobotHealth, type RobotId } from '@ghpaths/show-protocol';
+import {
+  simTopology,
+  type PoseSample,
+  type RobotHealth,
+  type RobotId,
+  type ShowClockSample,
+} from '@ghpaths/show-protocol';
 
 export interface RobotState {
   robot: RobotId;
@@ -16,7 +22,12 @@ export interface RobotState {
   trail: Array<{ x: number; y: number }>;
 }
 
-export type UiCommand = { kind: 'stop' } | { kind: 'resume' };
+/** UI 会用到的演出命令子集（完整语义见 show-protocol 的 ShowCommand） */
+export type UiCommand =
+  | { kind: 'stop' }
+  | { kind: 'resume' }
+  | { kind: 'arm'; showId: string; segmentId: number }
+  | { kind: 'start'; showId: string; tStartShowUs: number };
 
 const TRAIL_LIMIT = 240; // 20Hz × 12s
 
@@ -29,7 +40,12 @@ interface Entry {
   trail: Array<{ x: number; y: number }>;
 }
 
-export function useRobots(): { robots: RobotState[]; sendCommand: (robot: RobotId, cmd: UiCommand) => void } {
+export function useRobots(): {
+  robots: RobotState[];
+  sendCommand: (robot: RobotId, cmd: UiCommand) => void;
+  publishClock: (sample: ShowClockSample) => void;
+} {
+  // publishClock 每次 render 都是稳定引用（只读 refs），可安全传入其它 hook
   const [robots, setRobots] = useState<RobotState[]>(() =>
     simTopology.teams().map((robot) => ({
       robot,
@@ -116,5 +132,13 @@ export function useRobots(): { robots: RobotState[]; sendCommand: (robot: RobotI
       .sendCommand(cmd);
   };
 
-  return { robots, sendCommand };
+  /** 向全部机器人广播演出时钟样本（拓扑 B：逐机发布到各自 NT4 服务端）。
+   *  引用稳定（useCallback）——时钟发布器的 effect 依赖它，不能每次 render 重建。 */
+  const publishClock = useCallback((sample: ShowClockSample): void => {
+    for (const entry of entriesRef.current.values()) {
+      entry.conn?.publishClock(sample);
+    }
+  }, []);
+
+  return { robots, sendCommand, publishClock };
 }

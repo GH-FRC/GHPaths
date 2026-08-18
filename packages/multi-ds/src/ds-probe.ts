@@ -33,6 +33,18 @@ async function main(): Promise<void> {
   });
   await sleep(500); // 等 health 初值
 
+  // 演出驱动世界里"使能后运动"需要时钟+开演：持续广播时钟（running）并 arm+start
+  const clockStartMs = performance.now();
+  const clockIv = setInterval(() => {
+    conn.publishClock({
+      tMonotonicUs: performance.now() * 1000,
+      tShowUs: (performance.now() - clockStartMs) * 1000,
+      running: true,
+    });
+  }, 100);
+  conn.sendCommand({ kind: 'arm', showId: 'demo-wave', segmentId: 0 });
+  conn.sendCommand({ kind: 'start', showId: 'demo-wave', tStartShowUs: 0 });
+
   // 1) 建链：LogicalDs 心跳 → 机器人 dsLinked
   const simConfig = {
     team,
@@ -82,6 +94,7 @@ async function main(): Promise<void> {
   if (!cleared) throw new Error('clearEstop 未解除闩锁');
 
   await ds2.stop();
+  clearInterval(clockIv);
   link.closeAll();
   console.log('ds-probe 通过 ✓');
 }

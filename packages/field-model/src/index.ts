@@ -62,3 +62,61 @@ export interface Show {
 export function minSeparationM(_a: RobotShowPath, _b: RobotShowPath): number {
   throw new Error('TODO(Phase 3): 碰撞检测');
 }
+
+/** 路径上某演出时刻的位姿（分段线性插值；航向取段方向）。
+ *  首个航点前 → 起点静止；末个航点后 → 末点静止。空路径返回 null。 */
+export function poseOnPathAt(path: RobotShowPath, tShowUs: number): { x: number; y: number; heading: number } | null {
+  const wps = path.waypoints;
+  if (wps.length === 0) return null;
+  if (wps.length === 1 || tShowUs <= wps[0]!.tShowUs) {
+    const a = wps[0]!;
+    return { x: a.xM, y: a.yM, heading: a.headingRad };
+  }
+  for (let i = 1; i < wps.length; i++) {
+    const a = wps[i - 1]!;
+    const b = wps[i]!;
+    if (tShowUs < b.tShowUs) {
+      const span = b.tShowUs - a.tShowUs;
+      const f = span > 0 ? (tShowUs - a.tShowUs) / span : 1;
+      return {
+        x: a.xM + (b.xM - a.xM) * f,
+        y: a.yM + (b.yM - a.yM) * f,
+        heading: Math.atan2(b.yM - a.yM, b.xM - a.xM),
+      };
+    }
+  }
+  const last = wps[wps.length - 1]!;
+  return { x: last.xM, y: last.yM, heading: last.headingRad };
+}
+
+/**
+ * 内置演示演出（sim/预览用，Phase 3 编辑器落地前的占位编排）：
+ * 6 台机器人各沿一条"波浪扫场"车道行驶（y 车道互不重叠，天然无碰撞），时长 60s。
+ */
+export function createDemoShow(teams: number[]): Show {
+  const durationS = 60;
+  const paths: RobotShowPath[] = teams.map((robot, i) => {
+    const laneY = -2.4 + i * 0.96; // 车道间距恒定 > 底盘宽；全队 x 进度同步 → 横向间距恒定，无碰撞
+    const amplitude = 0.6 + (i % 2) * 0.2; // 峰值 |y| ≤ 3.2 < 围栏 3.4
+    const phase = (i * Math.PI) / 3;
+    const waypoints: Waypoint[] = [];
+    const steps = 24;
+    for (let s = 0; s <= steps; s++) {
+      const tS = (s / steps) * durationS;
+      const x = -4.2 + (8.4 * s) / steps;
+      const y = laneY + amplitude * Math.sin((s / steps) * Math.PI * 2 * 1.5 + phase);
+      const nextS = (Math.min(s + 1, steps) / steps) * durationS;
+      const nextX = -4.2 + (8.4 * Math.min(s + 1, steps)) / steps;
+      const nextY =
+        laneY + amplitude * Math.sin((Math.min(s + 1, steps) / steps) * Math.PI * 2 * 1.5 + phase);
+      waypoints.push({
+        xM: x,
+        yM: y,
+        headingRad: s === steps ? Math.atan2(nextY - y, Math.max(nextX - x, 0.001)) : Math.atan2(nextY - y, nextX - x),
+        tShowUs: Math.round(tS * 1e6),
+      });
+    }
+    return { robot, waypoints };
+  });
+  return { id: 'demo-wave', paths, durationShowUs: durationS * 1e6 };
+}
