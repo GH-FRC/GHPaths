@@ -4,14 +4,23 @@
 # 注意：alias 重启 / 网卡 bounce（WiFi 重连、DHCP 续租）后失效，属预期；
 # GHPaths 启动自检兜底（见 docs/architecture.md）。
 #
-# 用法：sudo ./scripts/setup-aliases.sh add|remove|status [网卡名，默认 en0]
+# 用法：sudo ./scripts/setup-aliases.sh add|remove|status [网卡名，默认 en0] [队号...]
+#   例：sudo ./scripts/setup-aliases.sh add en0 9001   # 只加 1 个队号（Phase 0 先单台验证）
+#       sudo ./scripts/setup-aliases.sh add            # 全部 6 个
 
 set -euo pipefail
 
 ACTION="${1:-status}"
 IFACE="${2:-en0}"
+if [ "$#" -ge 2 ]; then
+  shift 2
+fi
+if [ "$#" -gt 0 ]; then
+  TEAMS=("$@")
+else
+  TEAMS=(9001 9002 9003 9004 9005 9006)
+fi
 BASE="10"
-TEAMS=(9001 9002 9003 9004 9005 9006)
 
 team_ip() {
   local team="$1"
@@ -55,7 +64,7 @@ case "$ACTION" in
     done
     ;;
   *)
-    echo "usage: $0 add|remove|status [iface]" >&2
+    echo "usage: $0 add|remove|status [iface] [team ...]" >&2
     exit 2
     ;;
 esac

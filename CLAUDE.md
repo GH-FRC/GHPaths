@@ -22,7 +22,7 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 
 ## 工作流
 
-- 包管理：npm workspaces（node ≥20）。常用命令（根目录执行）：`npm install`（一次）、`npm run dev`（console UI）、`npm run typecheck`（全仓）、`npm run build`、`npm run sim`（模拟机器人）；
+- 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启）。常用命令（根目录执行）：`npm install`（一次）、`npm run dev`（console UI）、`npm run typecheck`（全仓）、`npm run build`、`npm run sim`（模拟机器人）；
 - 任何改动完成后必须过 `npm run typecheck`；
 - 目录速览：`apps/console`（UI）· `packages/{show-protocol,field-model,nt-link,multi-ds}` · `sim/fake-robot` · `robot/`（Phase 0 生成）· `docs/`（architecture / decisions(ADR) / protocol / phase0-checklist）· `scripts/`；
 - 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）。
@@ -31,4 +31,4 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 
 - 机器人连不上时第一嫌疑：系统设置 → 隐私与安全性 → 本地网络 授权（macOS 15+；Terminal/SSH 启动的 CLI 豁免此权限）；
 - 多 IP：`sudo ./scripts/setup-aliases.sh add|remove|status`；alias 会被网卡 bounce（WiFi 重连/DHCP 续租）清掉，属预期，启动自检兜底；
-- Node ≥21 自带全局 WebSocket（NT4 与 sim 用，无需 ws 依赖）。
+- Node ≥22 自带全局 WebSocket（NT4 与 sim 用，无需 ws 依赖）；Node ≥23.6 可直接运行 .ts 源码（sim 入口即用此特性）。

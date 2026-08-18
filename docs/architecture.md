@@ -66,3 +66,11 @@ FMS 侧端口（1160/1750/1121 等）本项目不使用，记录在协议笔记�
 - **multi-DS 崩溃** → 心跳停止 → 机器人 NI NetComm 看门狗切断输出（数百 ms 量级，用户代码不可绕过）；
 - **机器人代码崩溃** → robot code 标志位失效，DS 侧可见；
 - **物理急停**：独立于以上一切软件链路（报告 §六.4）。
+
+## 启动自检（console / multi-ds 启动时执行）
+
+任一项不通过：UI 显式标红对应机器人，禁止一键启动。alias 可能被网卡 bounce（WiFi 重连/DHCP 续租）清掉，因此自检每次启动都跑而非只在安装时跑（报告 §六.5/§7.3）：
+
+1. 本地 DS 地址就绪：期望的 10.TE.AM.5 别名全部存在（等价 `scripts/setup-aliases.sh status` 无 MISSING）；
+2. 各机器人 mDNS 可解析（roboRIO-XXXX-FRC.local）、NT4 可连、multi-DS 心跳链路通；
+3. 演出周附加：macOS 本地网络权限有效（一次出站探测验证）、时钟源健康。

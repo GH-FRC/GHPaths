@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "GHPaths — 面向机器人表演的 FRC 多机器人路径规划与监控系统",
   "engines": {
-    "node": ">=20"
+    "node": ">=23.6"
   },
   "workspaces": [
     "apps/*",

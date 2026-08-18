@@ -22,11 +22,16 @@ export interface RobotFootprint {
 /** TODO(Phase 0)：用实际机器人底盘尺寸替换 */
 export const DEFAULT_FOOTPRINT: RobotFootprint = { lengthM: 0.9, widthM: 0.8 };
 
-/** 地理围栏（报告 §六.4 安全体系）：舞台边界内缩一个机器人半径 */
+/**
+ * 地理围栏（报告 §六.4 安全体系）：舞台边界内缩机器人外接圆半径。
+ * 取外接圆（½·√(长²+宽²)）而非轴对齐内缩——机器人朝向任意，轴对齐假设会把
+ * 横行的机器人放出边界（审校 2026-08-18 修正）。robot 端可直接以此为硬边界。
+ */
 export function stageGeofence(stage: StageConfig, robot: RobotFootprint): StageConfig {
+  const radiusM = Math.sqrt(robot.lengthM ** 2 + robot.widthM ** 2) / 2;
   return {
-    widthM: stage.widthM - robot.widthM,
-    depthM: stage.depthM - robot.lengthM,
+    widthM: stage.widthM - 2 * radiusM,
+    depthM: stage.depthM - 2 * radiusM,
   };
 }
 

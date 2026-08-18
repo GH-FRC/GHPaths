@@ -15,7 +15,7 @@ export function App() {
         <span className="badge">Phase 0 · 脚手架</span>
       </header>
       <section className="stage-wrap">
-        <svg viewBox={`${-w / 2} ${-d / 2} ${w} ${d}`} className="stage">
+        <svg viewBox={`${-w / 2} ${-d / 2 - 0.6} ${w} ${d + 1.2}`} className="stage">
           <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
           {ROBOTS.map((robot, i) => {
             const x = -w / 2 + (w / (ROBOTS.length + 1)) * (i + 1);
