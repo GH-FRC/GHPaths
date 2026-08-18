@@ -25,7 +25,8 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 - 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启）。常用命令（根目录执行）：`npm install`（一次）、`npm run dev`（console UI）、`npm run typecheck`（全仓）、`npm run build`、`npm run sim`（模拟机器人）；
 - 任何改动完成后必须过 `npm run typecheck`；
 - 目录速览：`apps/console`（UI）· `packages/{show-protocol,field-model,nt-link,multi-ds}` · `sim/fake-robot` · `robot/`（Phase 0 生成）· `docs/`（architecture / decisions(ADR) / protocol / phase0-checklist）· `scripts/`；
-- 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）。
+- 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）；
+- **工程日志**：每天一篇 `engineering-log/YYYY.M.D.md`（月/日不补零，格式如 `2026.8.18`），当天已有则续写不另开；每次会话收尾前检查当天日志是否已反映本次工作（约定详见 `engineering-log/README.md`）。
 
 ## 环境备注（macOS，演控主力机）
 
