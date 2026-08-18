@@ -46,8 +46,11 @@ export interface LogicalDs {
 export class NodeLogicalDs extends EventEmitter implements LogicalDs {
   private _state: DsControlState = 'disabled';
 
-  constructor(private readonly config: LogicalDsConfig) {
+  private readonly config: LogicalDsConfig;
+
+  constructor(config: LogicalDsConfig) {
     super();
+    this.config = config;
   }
 
   get team(): number {

@@ -11,9 +11,9 @@
 | `apps/console` | 演控台 UI（Vite + React；Tauri 壳推迟到打包阶段） |
 | `packages/show-protocol` | 演出协议：NT topic 命名、消息类型、时钟语义（单一事实来源） |
 | `packages/field-model` | 舞台/足迹/路径/地理围栏数据模型 |
-| `packages/nt-link` | NT4 接入适配层（隔离第三方 NT 客户端依赖） |
-| `packages/multi-ds` | 自研 multi-DS：FRC DS 协议心跳与使能控制（独立进程） |
-| `sim/fake-robot` | 模拟机器人（NT 发布 + DS 端点模拟），无硬件开发回路 |
+| `packages/nt-link` | NT4 接入适配层：按 NT4 规范 4.1 自研薄客户端（浏览器/Node 通用） |
+| `packages/multi-ds` | 自研 multi-DS：FRC DS 协议心跳与使能控制（独立进程，Phase 0） |
+| `sim/fake-robot` | 模拟机器人：NT4 服务端 + 位姿生成（DS 端点模拟属 Phase 0） |
 | `robot/` | roboRIO 机器人代码（Phase 0 由 WPILib 模板生成，钉 2026 栈） |
 | `docs/` | 架构、ADR 决策记录、DS 协议笔记、Phase 0 清单 |
 | `scripts/` | 演控机环境脚本（secondary IP 别名配置等） |
@@ -22,10 +22,11 @@
 
 ```bash
 npm install        # 根目录执行一次
-npm run dev        # 演控台 UI → http://localhost:5173
+npm run sim        # 终端 1：6 台模拟机器人（NT4 服务端，127.0.0.1:15801~15806）
+npm run dev        # 终端 2：演控台 UI → http://localhost:5173（自动连接，画布实时渲染）
+npm run probe      # sim 回路集成自检（需 sim 在跑）：位姿流 + stop/resume 命令回环
 npm run typecheck  # 全仓类型检查
-npm run build      # 构建console UI
-npm run sim        # 模拟机器人（Phase 0 实现中，当前为占位）
+npm run build      # 构建 console UI
 ```
 
 ## 开发约定

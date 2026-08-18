@@ -22,7 +22,7 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 
 ## 工作流
 
-- 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启）。常用命令（根目录执行）：`npm install`（一次）、`npm run dev`（console UI）、`npm run typecheck`（全仓）、`npm run build`、`npm run sim`（模拟机器人）；
+- 包管理：npm workspaces（node ≥23.6——`npm run sim` 直接运行 .ts，依赖原生 type stripping，23.6 起默认开启；**注意 type stripping 是 strip-only 模式：禁止 TS 参数属性（`constructor(private x)`）等需要代码变换的语法**，相对导入必须写 `.ts` 扩展名）。常用命令（根目录执行）：`npm install`（一次）、`npm run sim`（模拟机器人）、`npm run dev`（console UI）、`npm run probe`（sim 回路自检）、`npm run typecheck`（全仓）、`npm run build`；
 - 任何改动完成后必须过 `npm run typecheck`；
 - 目录速览：`apps/console`（UI）· `packages/{show-protocol,field-model,nt-link,multi-ds}` · `sim/fake-robot` · `robot/`（Phase 0 生成）· `docs/`（architecture / decisions(ADR) / protocol / phase0-checklist）· `scripts/`；
 - 架构/选型变更走 `docs/decisions/` 新增 ADR，不改旧 ADR 正文（只把状态改为「已被取代」）；
@@ -33,4 +33,4 @@ GHPaths：面向机器人表演的 FRC 多机器人演控系统。动手前先�
 
 - 机器人连不上时第一嫌疑：系统设置 → 隐私与安全性 → 本地网络 授权（macOS 15+；Terminal/SSH 启动的 CLI 豁免此权限）；
 - 多 IP：`sudo ./scripts/setup-aliases.sh add|remove|status`；alias 会被网卡 bounce（WiFi 重连/DHCP 续租）清掉，属预期，启动自检兜底；
-- Node ≥22 自带全局 WebSocket（NT4 与 sim 用，无需 ws 依赖）；Node ≥23.6 可直接运行 .ts 源码（sim 入口即用此特性）。
+- NT4 客户端（packages/nt-link）用 Node ≥22 / 浏览器自带的全局 WebSocket；fake-robot 的 NT4 **服务端**用 `ws` 库（Node 无内置 WS 服务端）。

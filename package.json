@@ -15,6 +15,7 @@
     "dev": "npm run dev -w @ghpaths/console",
     "build": "npm run build -w @ghpaths/console",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "sim": "npm run start -w @ghpaths/fake-robot"
+    "sim": "npm run start -w @ghpaths/fake-robot",
+    "probe": "npm run probe -w @ghpaths/fake-robot"
   }
 }

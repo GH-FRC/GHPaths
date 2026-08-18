@@ -57,10 +57,27 @@ export interface ShowClockSample {
  * NT4 topic 约定（两种拓扑下命名一致，见报告 §4.2）：
  *  A. 演控作为中心 NT4 服务器，机器人作为客户端连上来（星型，推荐）；
  *  B. 过渡期：演控作为 6 个客户端分别连各机器人的 NT4 服务器。
+ * topic 名遵循 NT4 惯例以 `/` 开头（WPILib getTable("ghpaths") 即映射到 /ghpaths/...）。
  */
 export const ntTopics = {
-  pose: (robot: RobotId) => `ghpaths/${robot}/pose`,
-  health: (robot: RobotId) => `ghpaths/${robot}/health`,
-  command: (robot: RobotId) => `ghpaths/${robot}/cmd`,
-  clock: 'ghpaths/clock',
+  pose: (robot: RobotId) => `/ghpaths/${robot}/pose`,
+  health: (robot: RobotId) => `/ghpaths/${robot}/health`,
+  command: (robot: RobotId) => `/ghpaths/${robot}/cmd`,
+  clock: '/ghpaths/clock',
+} as const;
+
+/**
+ * sim 开发回路的拓扑约定（ADR-0005）：console 与 fake-robot 共用此推导。
+ * 真实机器人 NT4 服务端在 5810；模拟机器人各自占用 15801~15806（本机回环）。
+ */
+export const simTopology = {
+  teamBase: 9001,
+  count: 6,
+  wsPortBase: 15800,
+  teams(): RobotId[] {
+    return Array.from({ length: this.count }, (_, i) => this.teamBase + i);
+  },
+  wsUrl(team: RobotId): string {
+    return `ws://127.0.0.1:${this.wsPortBase + (team % 100)}`;
+  },
 } as const;

@@ -1,46 +1,99 @@
-import { DEFAULT_FOOTPRINT, DEFAULT_STAGE } from '@ghpaths/field-model';
+import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
+import { useRobots, type RobotState } from './useRobots';
 
-const ROBOTS = [9001, 9002, 9003, 9004, 9005, 9006] as const;
+const RAD2DEG = 180 / Math.PI;
 
-/**
- * Phase 2 之前的占位界面：验证 workspace 依赖链路与舞台坐标渲染。
- * 注意：SVG 显示层 y 轴向下；世界坐标 +y 向观众的翻转由 Phase 2 的画布层统一处理。
- */
+/** 世界坐标 → SVG 屏幕坐标（世界 +y 向观众，SVG y 向下 → 翻转 y；航向随之取负） */
+function toScreen(x: number, y: number): string {
+  return `${x.toFixed(3)},${(-y).toFixed(3)}`;
+}
+
+function RobotMarker({ state, index }: { state: RobotState; index: number }) {
+  const { pose, trail, live } = state;
+  const fw = DEFAULT_FOOTPRINT.widthM / 2;
+  const fl = DEFAULT_FOOTPRINT.lengthM / 2;
+  // 无位姿时停在原点待命（灰色幽灵）
+  const x = pose?.xM ?? 0;
+  const y = pose?.yM ?? 0;
+  const headingDeg = pose ? -pose.headingRad * RAD2DEG : 0;
+  return (
+    <g className={live ? `robot-layer robot-${index + 1}` : 'robot-layer idle'}>
+      {trail.length > 1 && (
+        <polyline points={trail.map((p) => toScreen(p.x, p.y)).join(' ')} className="trail" />
+      )}
+      <g transform={`translate(${x} ${-y}) rotate(${headingDeg})`}>
+        <rect x={-fw} y={-fl} width={fw * 2} height={fl * 2} rx={0.05} className="robot-body" />
+        {/* 航向指示：车头短线 */}
+        <line x1={0} y1={-fl} x2={0} y2={-fl - 0.25} className="heading" />
+      </g>
+      <text x={x} y={-y + fl + 0.45} textAnchor="middle" className="robot-label">
+        {state.robot}
+      </text>
+    </g>
+  );
+}
+
 export function App() {
+  const { robots, sendCommand } = useRobots();
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
+  const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
+  const liveCount = robots.filter((r) => r.live).length;
+  const allLive = liveCount === robots.length && robots.length > 0;
+
   return (
     <main className="app">
       <header>
         <h1>GHPaths 演控台</h1>
-        <span className="badge">Phase 0 · 脚手架</span>
+        <span className={`badge ${allLive ? 'ok' : liveCount > 0 ? 'warn' : ''}`}>
+          {liveCount}/{robots.length} 在线
+        </span>
+        <span className="badge">sim 回路</span>
+        <div className="spacer" />
+        <button
+          className="stop-all"
+          onClick={() => robots.forEach((r) => sendCommand(r.robot, { kind: 'stop' }))}
+        >
+          全部停止
+        </button>
+        <button
+          className="resume-all"
+          onClick={() => robots.forEach((r) => sendCommand(r.robot, { kind: 'resume' }))}
+        >
+          全部恢复
+        </button>
       </header>
+
       <section className="stage-wrap">
         <svg viewBox={`${-w / 2} ${-d / 2 - 0.6} ${w} ${d + 1.2}`} className="stage">
           <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
-          {ROBOTS.map((robot, i) => {
-            const x = -w / 2 + (w / (ROBOTS.length + 1)) * (i + 1);
-            const y = d / 2 - 0.8;
-            return (
-              <g key={robot} transform={`translate(${x} ${y})`}>
-                <rect
-                  x={-DEFAULT_FOOTPRINT.widthM / 2}
-                  y={-DEFAULT_FOOTPRINT.lengthM / 2}
-                  width={DEFAULT_FOOTPRINT.widthM}
-                  height={DEFAULT_FOOTPRINT.lengthM}
-                  className={`robot robot-${i + 1}`}
-                  rx={0.05}
-                />
-                <text y={DEFAULT_FOOTPRINT.lengthM / 2 + 0.45} textAnchor="middle" className="robot-label">
-                  {robot}
-                </text>
-              </g>
-            );
-          })}
+          <rect
+            x={-fence.widthM / 2}
+            y={-fence.depthM / 2}
+            width={fence.widthM}
+            height={fence.depthM}
+            className="geofence"
+          />
+          {robots.map((r, i) => (
+            <RobotMarker key={r.robot} state={r} index={i} />
+          ))}
         </svg>
-        <p className="hint">
-          占位画布：世界坐标 +x 向右、+y 向观众、原点舞台中心（与 field-model 一致）。
-          实时位姿叠加将在 Phase 2 经 nt-link 接入；一键启停经 multi-DS 控制 API（5899）。
-        </p>
+        {liveCount === 0 && (
+          <p className="hint">未检测到模拟机器人 —— 先在仓库根目录运行 <code>npm run sim</code>。</p>
+        )}
+      </section>
+
+      <section className="panel">
+        {robots.map((r, i) => (
+          <div key={r.robot} className={`robot-card ${r.live ? '' : 'offline'}`}>
+            <span className={`dot robot-dot-${i + 1}`} data-on={r.live} />
+            <span className="card-team">{r.robot}</span>
+            <span className="card-state">
+              {!r.connected ? '连接中' : !r.live ? '无数据' : r.health?.enabled === false ? '已冻结' : '运行中'}
+            </span>
+            <button onClick={() => sendCommand(r.robot, { kind: 'stop' })}>停</button>
+            <button onClick={() => sendCommand(r.robot, { kind: 'resume' })}>走</button>
+          </div>
+        ))}
       </section>
     </main>
   );
