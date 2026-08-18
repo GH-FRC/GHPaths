@@ -56,10 +56,10 @@ FMS 侧端口（1160/1750/1121 等）本项目不使用，记录在协议笔记�
 
 ## 演出启动数据流
 
-1. UI 加载 show → 每台机器人 `arm`（NT4）：预载轨迹段；
-2. UI → multi-DS（5899）：`enableAutonomous` × N（DS 协议使能）；
-3. UI → NT4：`start(tStartShowUs)`——所有机器人在同一演出时钟时刻起步；
-4. 机器人持续发布 pose（20ms），UI 叠加渲染；
+1. UI → multi-DS（5899）：`enableAll`（DS 协议使能）；
+2. UI → 各机器人 `arm`（NT4）：预载轨迹段（机器人须已在路径起点，否则 start 被拒并报 fault）；
+3. UI → NT4：`start(tStartShowUs)`——所有机器人以演出时钟到点起步，演出时长到点 UI 自动 hold；
+4. 机器人持续发布 pose（20Hz），UI 叠加渲染；
 5. 急停：UI → multi-DS `estop`（单播全部，不依赖 NT4 链路存活）。
 
 ## 安全链（谁崩溃了会怎样）

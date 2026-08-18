@@ -25,11 +25,13 @@ npm install        # 根目录执行一次
 npm run sim        # 终端 1：6 台模拟机器人（NT4 + DS 端点；默认运动受 DS 使能门控）
 npm run ds         # 终端 2：multi-DS 独立进程（6 个逻辑 DS 心跳 + 控制 API :5899）
 npm run dev        # 终端 3：演控台 UI → http://localhost:5173（"全部使能"后机器人才动）
-npm run probe      # sim 回路集成自检（NT：位姿流 + 命令回环；需 sim 在跑）
-npm run probe:ds   # DS 链路自检（建链/使能/看门狗/estop 四关；需 sim 在跑、ds 停止）
+npm run probe      # 演出驱动全流程自检（八关；需 sim 在跑且 multi-DS 已停——探针自带逻辑 DS 会占端口）
+npm run probe:ds   # DS 链路自检（建链/使能/看门狗/estop 四关；同样需 sim 在跑、ds 停止）
 npm run typecheck  # 全仓类型检查
 npm run build      # 构建 console UI
 ```
+
+**演出操作注意**：演控台保持前台。浏览器会把后台标签页的定时器节流到约 1 次/分钟 → uiPing 停发 → multi-DS 2s 宽限期触发自动全停（安全设计：控制台无人值守即停机）。
 
 ## 开发约定
 

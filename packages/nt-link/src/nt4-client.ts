@@ -67,10 +67,10 @@ export class Nt4Client {
   private readonly publications = new Map<number, { name: string; type: string; wireType?: string }>();
   private readonly pubuidByTopic = new Map<string, number>();
   /**
-   * 待发值（时间同步前 / 断线期间缓存）。演出命令幂等可重放（show-protocol），
-   * 每个 pubuid 只保留最新一条。首个 RTT 应答后统一补发。
+   * 待发值（时间同步前 / 断线期间缓存），每个 pubuid 一个 FIFO 队列——
+   * 命令有序（arm→start 不得被合并覆盖）；每队列限长防积压。
    */
-  private readonly pendingValues = new Map<number, [number, string]>();
+  private readonly pendingValues = new Map<number, Array<[number, string]>>();
   private timeSynced = false;
   private controlReplayed = false;
   private bestRttUs = Number.POSITIVE_INFINITY;
@@ -132,7 +132,10 @@ export class Nt4Client {
 
   private sendValue(pubuid: number, typeCode: number, value: string): void {
     if (this.status !== 'connected' || !this.timeSynced) {
-      this.pendingValues.set(pubuid, [typeCode, value]);
+      const queue = this.pendingValues.get(pubuid) ?? [];
+      queue.push([typeCode, value]);
+      if (queue.length > 32) queue.shift(); // 防积压：超限丢最旧（命令场景足够）
+      this.pendingValues.set(pubuid, queue);
       return;
     }
     // 规范 §Timestamps：时间戳为整数微秒——真 ntcore 以 expect_i64 解码，浮点会被断连
@@ -246,10 +249,10 @@ export class Nt4Client {
           this.bestRttUs = rtt;
           this.serverOffsetUs = ts + rtt / 2 - localUs();
           this.timeSynced = true;
-          const queued = [...this.pendingValues.entries()];
-          this.pendingValues.clear();
-          for (const [pubuid, [typeCode, valueText]] of queued) {
-            this.sendValue(pubuid, typeCode, valueText);
+          for (const [pubuid, queue] of [...this.pendingValues.entries()]) {
+            for (const [typeCode, valueText] of queue.splice(0)) {
+              this.sendValue(pubuid, typeCode, valueText);
+            }
           }
           if (!this.controlReplayed) {
             this.controlReplayed = true;

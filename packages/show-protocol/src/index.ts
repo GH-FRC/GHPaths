@@ -31,10 +31,17 @@ export interface RobotHealth {
   dsLinked: boolean;
   enabled: boolean;
   estopped: boolean;
+  /** 最近 SHOW_CLOCK_TIMEOUT_MS 内收到演出时钟样本 */
+  clockLinked: boolean;
+  /** 演出驱动状态：idle 未装载 / armed 已装载待发 / running 行驶中 / held 保持 / stopped 结束归位 */
+  showState: 'idle' | 'armed' | 'running' | 'held' | 'stopped';
   /** 机器人代码版本，联排对版本用 */
   codeVersion: string;
   fault: string | null;
 }
+
+/** 演出时钟样本失效时限：超过即视为断时钟，机器人停止（robot/README 约束） */
+export const SHOW_CLOCK_TIMEOUT_MS = 750;
 
 /** 演控 → 机器人的演出命令。设计为幂等、可安全重放（NT4 至少一次语义）。 */
 export type ShowCommand =
@@ -44,7 +51,7 @@ export type ShowCommand =
   | { kind: 'resume' }
   | { kind: 'stop' };
 
-/** 演控 → 全体的时钟样本（约 250ms 周期，Phase 0 校准） */
+/** 演控 → 全体的时钟样本（100ms/10Hz 周期；机器人端失联阈值 SHOW_CLOCK_TIMEOUT_MS=750ms） */
 export interface ShowClockSample {
   /** 演控侧单调时钟，微秒——机器人端据此做 RTT/漂移估计 */
   tMonotonicUs: number;

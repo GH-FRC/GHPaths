@@ -13,6 +13,7 @@ import {
   type PoseSample,
   type RobotHealth,
   type RobotId,
+  type ShowClockSample,
   type ShowCommand,
 } from '@ghpaths/show-protocol';
 
@@ -29,6 +30,8 @@ export interface RobotConnection {
   onHealth(cb: (health: RobotHealth) => void): () => void;
   onStatus(cb: (status: Nt4Status) => void): () => void;
   sendCommand(cmd: ShowCommand): void;
+  /** 广播演出时钟样本（发布到该机器人的 /ghpaths/clock） */
+  publishClock(sample: ShowClockSample): void;
 }
 
 export interface NtLink {
@@ -107,12 +110,16 @@ class RobotConnectionImpl implements RobotConnection {
     this.client.publishJson(ntTopics.command(this.robot), JSON.stringify(cmd));
   }
 
+  publishClock(sample: ShowClockSample): void {
+    this.client.publishJson(ntTopics.clock, JSON.stringify(sample));
+  }
+
   private dispatch(topicName: string, tsUs: number, value: unknown): void {
     if (topicName === ntTopics.pose(this.robot)) {
-      if (!Array.isArray(value) || value.length < 3) return;
-      const [x, y, heading] = value as number[];
-      if (typeof x !== 'number' || typeof y !== 'number' || typeof heading !== 'number') return;
-      const pose: PoseSample = { tShowUs: tsUs, xM: x, yM: y, headingRad: heading };
+      if (!Array.isArray(value) || value.length < 4) return;
+      const [t, x, y, heading] = value as number[];
+      if (typeof t !== 'number' || typeof x !== 'number' || typeof y !== 'number' || typeof heading !== 'number') return;
+      const pose: PoseSample = { tShowUs: t, xM: x, yM: y, headingRad: heading };
       for (const cb of this.poses) cb(pose);
     } else if (topicName === ntTopics.health(this.robot)) {
       if (typeof value !== 'string') return;
@@ -122,6 +129,8 @@ class RobotConnectionImpl implements RobotConnection {
           dsLinked: h.dsLinked === true,
           enabled: h.enabled === true,
           estopped: h.estopped === true,
+          clockLinked: h.clockLinked === true,
+          showState: h.showState ?? 'idle',
           codeVersion: typeof h.codeVersion === 'string' ? h.codeVersion : '?',
           fault: typeof h.fault === 'string' ? h.fault : null,
         });
