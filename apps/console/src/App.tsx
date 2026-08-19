@@ -357,6 +357,14 @@ export function App() {
         )}
         {replayActive ? (
           <div className="replay-bar">
+            <div className="replay-stats">
+              <span>最窄间距 <b className={replayData.stats.minSeparationM < 1.05 ? 'stat-bad' : 'stat-ok'}>
+                {replayData.stats.minSeparationM.toFixed(2)}m</b></span>
+              <span>@{(replayData.stats.minSeparationAtMs / 1000).toFixed(1)}s</span>
+              {replayData.stats.separationBreaches.length > 0 && (
+                <span className="stat-bad">超阈值 {replayData.stats.separationBreaches.length} 段</span>
+              )}
+            </div>
             <span className="replay-time">
               {(replay.cursorMs / 1000).toFixed(1)}s / {(replayData.durationMs / 1000).toFixed(1)}s
               （演出时钟 {(replay.tShowAtCursor / 1e6).toFixed(1)}s）
