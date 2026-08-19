@@ -12,6 +12,12 @@ import {
   type ShowClockSample,
 } from '@ghpaths/show-protocol';
 
+/** 数据流引出（录制等），实现须为稳定引用（存 ref 内部轮换，不进 effect 依赖） */
+export interface RobotsTap {
+  onPose?: (robot: RobotId, pose: PoseSample) => void;
+  onHealth?: (robot: RobotId, health: RobotHealth) => void;
+}
+
 export interface RobotState {
   robot: RobotId;
   connected: boolean;
@@ -40,12 +46,14 @@ interface Entry {
   trail: Array<{ x: number; y: number }>;
 }
 
-export function useRobots(): {
+export function useRobots(tap?: RobotsTap): {
   robots: RobotState[];
   sendCommand: (robot: RobotId, cmd: UiCommand) => void;
   publishClock: (sample: ShowClockSample) => void;
 } {
   // publishClock 每次 render 都是稳定引用（只读 refs），可安全传入其它 hook
+  const tapRef = useRef<RobotsTap | undefined>(tap);
+  tapRef.current = tap;
   const [robots, setRobots] = useState<RobotState[]>(() =>
     simTopology.teams().map((robot) => ({
       robot,
@@ -86,9 +94,11 @@ export function useRobots(): {
         entry.lastPoseMs = performance.now();
         entry.trail.push({ x: p.xM, y: p.yM });
         if (entry.trail.length > TRAIL_LIMIT) entry.trail.shift();
+        tapRef.current?.onPose?.(team, p);
       });
       conn.onHealth((h) => {
         entry.health = h;
+        tapRef.current?.onHealth?.(team, h);
       });
       void conn.connect().catch(() => {
         // 首连等待超时：内部自动重连，状态回调稍后点亮
