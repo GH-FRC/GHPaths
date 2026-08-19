@@ -22,5 +22,8 @@
     "tauri": "npm run tauri -w @ghpaths/console",
     "tauri:build": "npm run tauri -w @ghpaths/console -- build",
     "tauri:dev": "npm run tauri -w @ghpaths/console -- dev"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

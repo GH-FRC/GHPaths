@@ -6,6 +6,7 @@ import { useMultiDs } from './useMultiDs';
 import { useShow } from './useShow';
 import { useRecorder } from './useRecorder';
 import { useReplay } from './useReplay';
+import { useBackends } from './useBackends';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -85,6 +86,7 @@ function downloadJsonl(text: string): void {
 export function App() {
   const recorder = useRecorder();
   const replay = useReplay();
+  const backends = useBackends();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { robots, sendCommand, publishClock } = useRobots({
     onPose: recorder.pushPose,
@@ -211,6 +213,20 @@ export function App() {
         )}
       </header>
 
+      {backends.available && (
+        <div className="backends-bar">
+          {backends.backends.map((b) => (
+            <span key={b.which} className="backend-pill">
+              <span className="dot" data-on={b.running} style={{ color: '#79c0ff' }} />
+              {b.which === 'sim' ? '模拟机器人' : 'multi-DS'}
+              {b.running && <span className="backend-uptime">{b.uptimeSecs}s</span>}
+              <button onClick={() => backends.toggle(b.which)}>{b.running ? '停止' : '启动'}</button>
+            </span>
+          ))}
+          {backends.error && <span className="backend-err">{backends.error}</span>}
+        </div>
+      )}
+
       <section className="stage-wrap">
         <svg viewBox={`${-w / 2} ${-d / 2 - 0.6} ${w} ${d + 1.2}`} className="stage">
           <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
@@ -288,9 +304,19 @@ export function App() {
             </span>
           </div>
         ) : liveCount === 0 ? (
-          <p className="hint">未检测到模拟机器人 —— 先在仓库根目录运行 <code>npm run sim</code>。</p>
+          <p className="hint">
+            未检测到模拟机器人 ——{' '}
+            {backends.available
+              ? '在上方面板启动「模拟机器人」后端。'
+              : <>先在仓库根目录运行 <code>npm run sim</code>。</>}
+          </p>
         ) : !multiDs.connected ? (
-          <p className="hint">机器人已连 NT，但 multi-DS 未连接 —— 运行 <code>npm run ds</code> 后即可使能。</p>
+          <p className="hint">
+            机器人已连 NT，但 multi-DS 未连接 ——{' '}
+            {backends.available
+              ? '在上方面板启动「multi-DS」后端。'
+              : <>运行 <code>npm run ds</code> 后即可使能。</>}
+          </p>
         ) : show.phase === 'idle' ? (
           <p className="hint">就绪 —— 点「启动演出」开演（使能 + 时钟 + 路径一起走，自动录制）。</p>
         ) : null}

@@ -16,3 +16,4 @@ AGENTS.md
 # Tauri/Rust 构建产物
 apps/console/src-tauri/target/
 apps/console/src-tauri/gen/
+apps/console/src-tauri/binaries/
