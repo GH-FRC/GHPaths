@@ -312,3 +312,102 @@ button:hover {
   color: #ff7b72;
   font-size: 12px;
 }
+
+/* ---- 遥测图表 ---- */
+.charts-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chart-card {
+  flex: 1;
+  background: #161b22;
+  border: 1px solid #232932;
+  border-radius: 8px;
+  padding: 8px 10px 6px;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8e8ea;
+}
+
+.chart-sub {
+  font-weight: 400;
+  font-size: 11px;
+  color: #9aa4b2;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 120px;
+  display: block;
+  touch-action: none;
+}
+
+.chart-grid {
+  stroke: #232932;
+  stroke-width: 0.5;
+}
+
+.chart-axis-text {
+  fill: #9aa4b2;
+  font-size: 6px;
+}
+
+.chart-threshold {
+  stroke: #ff7b72;
+  stroke-width: 0.6;
+  stroke-dasharray: 3 2;
+  opacity: 0.85;
+}
+
+.chart-threshold-text {
+  fill: #ff7b72;
+  font-size: 6px;
+}
+
+.chart-line {
+  stroke: #79c0ff;
+  stroke-width: 1.4;
+}
+
+.chart-line-dot {
+  fill: #79c0ff;
+}
+
+.chart-last-text {
+  fill: #e8e8ea;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.chart-crosshair {
+  stroke: #9aa4b2;
+  stroke-width: 0.4;
+  stroke-dasharray: 2 2;
+}
+
+.chart-tip-bg {
+  fill: #0d1117;
+  stroke: #30363d;
+  stroke-width: 0.5;
+}
+
+.chart-tip-text {
+  fill: #e8e8ea;
+  font-size: 7px;
+}
+
+.sparkline {
+  display: block;
+  margin-top: 2px;
+}
+
+.sparkline-path {
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.75;
+}

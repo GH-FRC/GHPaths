@@ -8,6 +8,9 @@ import { useRecorder } from './useRecorder';
 import { useReplay } from './useReplay';
 import { useBackends } from './useBackends';
 import { jsonlToWpilog } from './wpilog-export';
+import { useTelemetry } from './useTelemetry';
+import { SpacingChart } from './SpacingChart';
+import { Sparkline } from './Sparkline';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -107,8 +110,12 @@ export function App() {
   const replay = useReplay();
   const backends = useBackends();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const telemetry = useTelemetry();
   const { robots, sendCommand, publishClock } = useRobots({
-    onPose: recorder.pushPose,
+    onPose: (robot, pose) => {
+      recorder.pushPose(robot, pose);
+      telemetry.onPose(robot, pose);
+    },
     onHealth: recorder.pushHealth,
   });
   const multiDs = useMultiDs();
@@ -122,12 +129,13 @@ export function App() {
   const replayData = replay.data;
   const replayActive = replayData !== null;
 
-  // multi-DS 状态落盘（recorder 内部按内容去重；pushDs 为稳定引用）
+  // multi-DS 状态落盘（recorder 内部按内容去重；pushDs 为稳定引用）+ 遥测采样
   useEffect(() => {
     for (const [team, st] of multiDs.robots) {
       recorder.pushDs(team, st.state, st.linked, st.batteryVolts);
+      telemetry.onBattery(team, st.batteryVolts);
     }
-  }, [multiDs.robots, recorder.pushDs]);
+  }, [multiDs.robots, recorder.pushDs, telemetry.onBattery]);
 
   // 未导出的日志在关页/刷新前拦一道
   useEffect(() => {
@@ -349,6 +357,12 @@ export function App() {
         ) : null}
       </section>
 
+      {!replayActive && (
+        <section className="charts-row">
+          <SpacingChart data={telemetry.spacing} thresholdM={1.05} windowMs={60_000} />
+        </section>
+      )}
+
       <section className="panel">
         {robots.map((r, i) => {
           const ds = multiDs.robots.get(r.robot);
@@ -371,7 +385,10 @@ export function App() {
                   </button>
                 </>
               )}
-              <span className="card-batt">{ds?.linked ? `${ds.batteryVolts.toFixed(1)}V` : ''}</span>
+              <span className="card-batt">
+                {ds?.linked ? `${ds.batteryVolts.toFixed(1)}V` : ''}
+                <Sparkline data={telemetry.battery.get(r.robot)} />
+              </span>
             </div>
           );
         })}
