@@ -32,7 +32,7 @@ export interface RobotState {
 export type UiCommand =
   | { kind: 'stop' }
   | { kind: 'resume' }
-  | { kind: 'arm'; showId: string; segmentId: number }
+  | { kind: 'arm'; showId: string; segmentId: number; path?: unknown }
   | { kind: 'start'; showId: string; tStartShowUs: number };
 
 const TRAIL_LIMIT = 240; // 20Hz × 12s

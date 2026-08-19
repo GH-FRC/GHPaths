@@ -3,12 +3,12 @@
  *
  * 时钟：10Hz 向全部机器人广播 ShowClockSample；running=false 时 tShow 冻结（hold 语义
  * 靠时钟本身实现，机器人不需要 hold/resume 命令）。
- * 命令：start → arm 隐含 + 各机 start(tStart)；stop → 各机 stop。
+ * 命令：start → arm（带编辑器路径,无则用机器人内置）+ 各机 start(tStart)；stop → 各机 stop。
  * UI 断连/卸载时停止广播 → 机器人 750ms 内断时钟自动停（安全链一环）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RobotId, ShowClockSample } from '@ghpaths/show-protocol';
-import { DEMO_SHOW_ID } from '@ghpaths/field-model';
+import type { RobotShowPath } from '@ghpaths/field-model';
 import { subscribeTicks } from './tick-source';
 
 export type ShowPhase = 'idle' | 'running' | 'held';
@@ -27,11 +27,12 @@ export interface ShowControl {
 
 export function useShow(
   publishClock: (sample: ShowClockSample) => void,
-  sendCommand: (robot: RobotId, cmd: { kind: 'start'; showId: string; tStartShowUs: number } | { kind: 'stop' } | { kind: 'arm'; showId: string; segmentId: number }) => void,
+  sendCommand: (robot: RobotId, cmd: { kind: 'start'; showId: string; tStartShowUs: number } | { kind: 'stop' } | { kind: 'arm'; showId: string; segmentId: number; path?: unknown }) => void,
   teams: RobotId[],
   durationShowUs: number,
+  showId: string,
   onEvent?: (event: 'start' | 'hold' | 'resume' | 'stop' | 'ended') => void,
-  showId: string = DEMO_SHOW_ID,
+  paths?: Map<number, RobotShowPath>,
 ): ShowControl {
   const [phase, setPhase] = useState<ShowPhase>('idle');
   const [tShowSeconds, setTShowSeconds] = useState(0);
@@ -80,10 +81,10 @@ export function useShow(
     setPhase('running');
     onEventRef.current?.('start');
     for (const team of teams) {
-      sendCommand(team, { kind: 'arm', showId, segmentId: 0 });
+      sendCommand(team, { kind: 'arm', showId, segmentId: 0, path: paths?.get(team) });
       sendCommand(team, { kind: 'start', showId, tStartShowUs: 0 });
     }
-  }, [sendCommand, teams, showId]);
+  }, [sendCommand, teams, showId, paths]);
 
   const hold = useCallback((): void => {
     if (phaseRef.current !== 'running') return;

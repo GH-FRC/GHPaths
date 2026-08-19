@@ -129,7 +129,8 @@ export function App() {
   const multiDs = useMultiDs();
   const teams = useMemo(() => simTopology.teams(), []);
   const activeShow = editor.show;
-  const show = useShow(publishClock, sendCommand, teams, activeShow.durationShowUs, recorder.pushShowEvent, activeShow.id);
+  const editorPaths = useMemo(() => new Map(editor.show.paths.map((p) => [p.robot, p])), [editor.show]);
+  const show = useShow(publishClock, sendCommand, teams, activeShow.durationShowUs, activeShow.id, recorder.pushShowEvent, editorPaths);
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
