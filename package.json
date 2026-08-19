@@ -24,6 +24,7 @@
     "tauri:dev": "npm run tauri -w @ghpaths/console -- dev"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "wpilog-parser": "^2.2.0"
   }
 }
