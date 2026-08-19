@@ -461,8 +461,8 @@ export function App() {
 
       {!replayActive && !editMode && (
         <section className="charts-row">
-          <SpacingChart data={telemetry.spacing} thresholdM={SAFETY_MIN_SEPARATION_M} windowMs={60_000} />
-          <SpacingChart data={telemetry.clockDrift} thresholdM={0} windowMs={60_000} />
+          <SpacingChart data={telemetry.spacing} thresholdM={SAFETY_MIN_SEPARATION_M} windowMs={60_000} title="最小机间距" />
+          <SpacingChart data={telemetry.clockDrift} thresholdM={0} windowMs={60_000} title="时钟漂移" unit="ppm" />
         </section>
       )}
 
