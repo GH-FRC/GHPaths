@@ -86,6 +86,9 @@ export function minSeparationM(a: RobotShowPath, b: RobotShowPath): number {
  */
 export const DEMO_SHOW_ID = 'demo-wave';
 
+/** 全队安全最小间距（米）——演示演出的构建期断言阈值与编辑器/图表的碰撞预警共用 */
+export const SAFETY_MIN_SEPARATION_M = 1.05;
+
 export function createDemoShow(teams: number[]): Show {
   const durationS = 60;
   const laneSpacing = 1.1;
@@ -119,7 +122,7 @@ export function createDemoShow(teams: number[]): Show {
   // 构建期自检：相邻车道最小间距必须 ≥ 底盘倾斜投影宽（1.064m，见头注释；1.05 留工程余量）
   for (let i = 1; i < paths.length; i++) {
     const sep = minSeparationM(paths[i - 1]!, paths[i]!);
-    if (sep < 1.05) {
+    if (sep < SAFETY_MIN_SEPARATION_M) {
       throw new Error(`demo show 车道 ${i - 1}/${i} 最小间距 ${sep.toFixed(3)}m < 1.05m（碰撞）`);
     }
   }
