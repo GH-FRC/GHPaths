@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RobotId, ShowClockSample } from '@ghpaths/show-protocol';
 import { DEMO_SHOW_ID } from '@ghpaths/field-model';
+import { subscribeTicks } from './tick-source';
 
 export type ShowPhase = 'idle' | 'running' | 'held';
 
@@ -23,8 +24,6 @@ export interface ShowControl {
   resume: () => void;
   stop: () => void;
 }
-
-const CLOCK_PERIOD_MS = 100;
 
 export function useShow(
   publishClock: (sample: ShowClockSample) => void,
@@ -53,8 +52,10 @@ export function useShow(
     return Math.min(baseUs, durationShowUs);
   }, [durationShowUs]);
 
+  // 节拍源用 Worker（tick-source）：后台标签的 setInterval 被节流到 ~1 次/分钟，
+  // 曾实测导致演出时钟断流全场自动停；Worker 节拍不受钳制
   useEffect(() => {
-    const iv = setInterval(() => {
+    const unsub = subscribeTicks(1, () => {
       const tShowUs = currentTShowUs();
       if (phaseRef.current === 'running' && tShowUs >= durationShowUs) {
         // 到点自动 hold（安全：不再无限期保持使能行驶完毕的机器人）
@@ -69,8 +70,8 @@ export function useShow(
         running: phaseRef.current === 'running',
       });
       setTShowSeconds(tShowUs / 1e6);
-    }, CLOCK_PERIOD_MS);
-    return () => clearInterval(iv);
+    });
+    return unsub;
   }, [currentTShowUs, publishClock, durationShowUs]);
 
   const start = useCallback((): void => {
