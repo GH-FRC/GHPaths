@@ -107,6 +107,33 @@ export const simTopology = {
 /** multi-DS 控制 API 端口（仅 localhost；ADR-0002） */
 export const MULTI_DS_CONTROL_PORT = 5899;
 
+/**
+ * 演出日志格式 v1（JSONL，一行一条；console 录制、可离线回放）。
+ * tRecMs 为录制端单调时钟（performance.now），仅用于排序与回放时间轴；
+ * 位姿行自带 tShowUs（演出时钟），保证回放与编排对齐。
+ */
+export type ShowLogRecord =
+  | { type: 'meta'; v: 1; recordedAt: string; teams: RobotId[]; showId: string | null }
+  | { type: 'show'; tRecMs: number; event: 'start' | 'hold' | 'resume' | 'stop' | 'ended' }
+  | {
+      type: 'pose';
+      tRecMs: number;
+      tShowUs: number;
+      robot: RobotId;
+      xM: number;
+      yM: number;
+      headingRad: number;
+    }
+  | { type: 'health'; tRecMs: number; robot: RobotId; health: RobotHealth }
+  | {
+      type: 'ds';
+      tRecMs: number;
+      team: RobotId;
+      state: 'disabled' | 'enabled' | 'estopped';
+      linked: boolean;
+      batteryVolts: number;
+    };
+
 /** UI → multi-DS 控制 API 消息（ws://127.0.0.1:5899，JSON） */
 export type MultiDsControl =
   | { type: 'enable'; team: RobotId }

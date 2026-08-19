@@ -30,6 +30,7 @@ export function useShow(
   sendCommand: (robot: RobotId, cmd: { kind: 'start'; showId: string; tStartShowUs: number } | { kind: 'stop' } | { kind: 'arm'; showId: string; segmentId: number }) => void,
   teams: RobotId[],
   durationShowUs: number,
+  onEvent?: (event: 'start' | 'hold' | 'resume' | 'stop' | 'ended') => void,
 ): ShowControl {
   const [phase, setPhase] = useState<ShowPhase>('idle');
   const [tShowSeconds, setTShowSeconds] = useState(0);
@@ -38,6 +39,8 @@ export function useShow(
   const baseRef = useRef({ startMs: 0, baseUs: 0 });
   const phaseRef = useRef<ShowPhase>('idle');
   phaseRef.current = phase;
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
 
   const currentTShowUs = useCallback((): number => {
     const { startMs, baseUs } = baseRef.current;
@@ -56,6 +59,7 @@ export function useShow(
         baseRef.current = { startMs: performance.now(), baseUs: durationShowUs };
         setPhase('held');
         setEnded(true);
+        onEventRef.current?.('ended');
       }
       publishClock({
         tMonotonicUs: performance.now() * 1000,
@@ -71,6 +75,7 @@ export function useShow(
     baseRef.current = { startMs: performance.now(), baseUs: 0 };
     setEnded(false);
     setPhase('running');
+    onEventRef.current?.('start');
     for (const team of teams) {
       sendCommand(team, { kind: 'arm', showId: 'demo-wave', segmentId: 0 });
       sendCommand(team, { kind: 'start', showId: 'demo-wave', tStartShowUs: 0 });
@@ -81,12 +86,14 @@ export function useShow(
     if (phaseRef.current !== 'running') return;
     baseRef.current = { startMs: performance.now(), baseUs: currentTShowUs() };
     setPhase('held');
+    onEventRef.current?.('hold');
   }, [currentTShowUs]);
 
   const resume = useCallback((): void => {
     if (phaseRef.current !== 'held' || ended) return; // 已到时长不再续跑
     baseRef.current = { startMs: performance.now(), baseUs: currentTShowUs() };
     setPhase('running');
+    onEventRef.current?.('resume');
   }, [currentTShowUs, ended]);
 
   const stop = useCallback((): void => {
@@ -94,6 +101,7 @@ export function useShow(
     setEnded(false);
     baseRef.current = { startMs: performance.now(), baseUs: 0 };
     setTShowSeconds(0);
+    onEventRef.current?.('stop');
     for (const team of teams) sendCommand(team, { kind: 'stop' });
   }, [sendCommand, teams]);
 
