@@ -11,6 +11,7 @@ import { jsonlToWpilog } from './wpilog-export';
 import { useTelemetry } from './useTelemetry';
 import { usePathEditor } from './usePathEditor';
 import { EditorCanvas } from './EditorCanvas';
+import { Stage3D, type Robot3DData } from './Stage3D';
 import { SpacingChart } from './SpacingChart';
 import { Sparkline } from './Sparkline';
 
@@ -115,6 +116,7 @@ export function App() {
   const telemetry = useTelemetry();
   const editor = usePathEditor();
   const [editMode, setEditMode] = useState(false);
+  const [view3D, setView3D] = useState(false);
   const editorFileRef = useRef<HTMLInputElement | null>(null);
   const [editorMsg, setEditorMsg] = useState<string | null>(null);
   const { robots, sendCommand, publishClock } = useRobots({
@@ -191,6 +193,11 @@ export function App() {
         )}
         {recorder.recording && <span className="badge rec">● 录制 {recorder.lineCount}</span>}
         <div className="spacer" />
+        {!replayActive && !editMode && (
+          <button onClick={() => setView3D(!view3D)} title="2D/3D 视图切换">
+            {view3D ? '2D' : '3D'}
+          </button>
+        )}
         {!replayActive && (
           <button
             className={editMode ? 'edit-mode-btn active' : 'edit-mode-btn'}
@@ -278,6 +285,22 @@ export function App() {
         </div>
       )}
 
+      {view3D && !editMode && !replayActive ? (
+        <section className="stage-wrap">
+          <Stage3D
+            robots={robots.map((r, i) => ({
+              robot: r.robot,
+              xM: r.pose?.xM ?? 0,
+              yM: r.pose?.yM ?? 0,
+              headingRad: r.pose?.headingRad ?? 0,
+              trail: r.trail,
+            }))}
+          />
+          <p className="hint">3D 全场监控（几何占位;ADR-0006 Phase 3 换 .glb 模型）</p>
+        </section>
+      ) : null}
+
+      {!view3D && !editMode && (
       <section className="stage-wrap">
         <svg viewBox={`${-w / 2} ${-d / 2 - 0.6} ${w} ${d + 1.2}`} className="stage">
           <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
@@ -372,6 +395,7 @@ export function App() {
           <p className="hint">就绪 —— 点「启动演出」开演（使能 + 时钟 + 路径一起走，自动录制）。</p>
         ) : null}
       </section>
+      )}
 
       {editMode && !replayActive ? (
         <section className="stage-wrap">

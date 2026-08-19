@@ -526,3 +526,16 @@ button:hover {
   fill: #ffa657;
   font-size: 0.4px;
 }
+
+.stage3d-wrap {
+  width: 100%;
+  height: 420px;
+  background: #0d1117;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stage3d {
+  width: 100%;
+  height: 100%;
+}
