@@ -83,6 +83,48 @@ button:hover {
   color: #7ee787;
 }
 
+.badge.rec {
+  color: #ff7b72;
+  border-color: #6e2a2a;
+}
+
+.replay-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #161b22;
+  border: 1px solid #232932;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.replay-time {
+  color: #8ab4ff;
+  min-width: 210px;
+}
+
+.replay-events {
+  display: flex;
+  gap: 4px;
+  color: #9aa4b2;
+}
+
+.event-mark {
+  border: 1px solid #3d444d;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.robot-label-1 { fill: #ff7b72; }
+.robot-label-2 { fill: #ffa657; }
+.robot-label-3 { fill: #f2cc60; }
+.robot-label-4 { fill: #7ee787; }
+.robot-label-5 { fill: #79c0ff; }
+.robot-label-6 { fill: #d2a8ff; }
+
 .path-preview {
   fill: none;
   stroke-width: 0.035;
@@ -238,3 +280,7 @@ button:hover {
 .robot-dot-4 { color: #7ee787; }
 .robot-dot-5 { color: #79c0ff; }
 .robot-dot-6 { color: #d2a8ff; }
+
+.warn-text {
+  color: #ffa657;
+}

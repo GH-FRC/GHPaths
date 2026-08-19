@@ -8,3 +8,8 @@ coverage/
 # robot (GradleRIO, Phase 0 起)
 robot/**/build/
 networktables.ini
+# 私有/AI 协作文件——不入库（用户 2026-08-19 指令）
+CLAUDE.md
+AGENTS.md
+.claude/
+.claude*

@@ -84,6 +84,8 @@ export function minSeparationM(a: RobotShowPath, b: RobotShowPath): number {
  * 车道间距 ≥ 机器人倾斜投影宽（0.9·sinθmax + 0.8·cosθmax，θmax≈20.5° ≈ 1.064m），
  * 构建时用 minSeparationM 断言。峰值 |y| = 2.75+0.5 = 3.25 < 围栏 3.398。
  */
+export const DEMO_SHOW_ID = 'demo-wave';
+
 export function createDemoShow(teams: number[]): Show {
   const durationS = 60;
   const laneSpacing = 1.1;
@@ -121,7 +123,7 @@ export function createDemoShow(teams: number[]): Show {
       throw new Error(`demo show 车道 ${i - 1}/${i} 最小间距 ${sep.toFixed(3)}m < 1.05m（碰撞）`);
     }
   }
-  return { id: 'demo-wave', paths, durationShowUs: durationS * 1e6 };
+  return { id: DEMO_SHOW_ID, paths, durationShowUs: durationS * 1e6 };
 }
 
 /** 路径上某演出时刻的位姿（分段线性插值；航向取段方向）。
