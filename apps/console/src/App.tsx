@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createDemoShow, DEFAULT_FOOTPRINT, DEFAULT_STAGE, DEMO_SHOW_ID, stageGeofence } from '@ghpaths/field-model';
+import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
 import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
 import { useMultiDs } from './useMultiDs';
@@ -128,8 +128,8 @@ export function App() {
   });
   const multiDs = useMultiDs();
   const teams = useMemo(() => simTopology.teams(), []);
-  const demoShow = useMemo(() => createDemoShow(teams), [teams]);
-  const show = useShow(publishClock, sendCommand, teams, demoShow.durationShowUs, recorder.pushShowEvent, DEMO_SHOW_ID);
+  const activeShow = editor.show;
+  const show = useShow(publishClock, sendCommand, teams, activeShow.durationShowUs, recorder.pushShowEvent, activeShow.id);
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
@@ -163,7 +163,7 @@ export function App() {
       if (t) downloadJsonl(t);
     }
     multiDs.send({ type: 'enableAll' });
-    recorder.begin(teams, DEMO_SHOW_ID);
+    recorder.begin(teams, activeShow.id);
     show.start();
   };
   const stopShow = (): void => {
@@ -311,8 +311,8 @@ export function App() {
             height={fence.depthM}
             className="geofence"
           />
-          {/* 编排路径预览（Phase 3 编辑器落地前用内置演示演出） */}
-          {demoShow.paths.map((p, i) => (
+          {/* 编排路径预览（编辑器数据 = 演出数据,单一来源） */}
+          {activeShow.paths.map((p, i) => (
             <polyline
               key={`path-${p.robot}`}
               points={p.waypoints.map((wp) => toScreen(wp.xM, wp.yM)).join(' ')}
