@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 与 bundler 生成的 Info.plist 合并（只放附加键;ADR-0007 v2：本地网络用途声明） -->
+<plist version="1.0">
+<dict>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>GHPaths 需要访问本地网络以连接机器人（NT4 遥测与使能控制）和 multi-DS 控制进程。</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_ghpaths._tcp</string>
+  </array>
+</dict>
+</plist>

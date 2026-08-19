@@ -18,6 +18,9 @@
     "sim": "npm run start -w @ghpaths/fake-robot",
     "ds": "npm run start -w @ghpaths/multi-ds",
     "probe": "npm run probe -w @ghpaths/fake-robot",
-    "probe:ds": "npm run probe:ds -w @ghpaths/multi-ds"
+    "probe:ds": "npm run probe:ds -w @ghpaths/multi-ds",
+    "tauri": "npm run tauri -w @ghpaths/console",
+    "tauri:build": "npm run tauri -w @ghpaths/console -- build",
+    "tauri:dev": "npm run tauri -w @ghpaths/console -- dev"
   }
 }

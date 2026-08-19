@@ -13,3 +13,6 @@ CLAUDE.md
 AGENTS.md
 .claude/
 .claude*
+# Tauri/Rust 构建产物
+apps/console/src-tauri/target/
+apps/console/src-tauri/gen/

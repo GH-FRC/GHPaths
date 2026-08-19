@@ -27,8 +27,10 @@ npm run ds         # 终端 2：multi-DS 独立进程（6 个逻辑 DS 心跳 + 
 npm run dev        # 终端 3：演控台 UI → http://localhost:5173（"全部使能"后机器人才动）
 npm run probe      # 演出驱动全流程自检（八关；需 sim 在跑且 multi-DS 已停——探针自带逻辑 DS 会占端口）
 npm run probe:ds   # DS 链路自检（建链/使能/看门狗/estop 四关；同样需 sim 在跑、ds 停止）
-npm run typecheck  # 全仓类型检查
-npm run build      # 构建 console UI
+npm run typecheck   # 全仓类型检查
+npm run build       # 构建 console UI（Web）
+npm run tauri:dev   # 桌面壳开发模式（Tauri 窗口跑 Vite）
+npm run tauri:build # 打包 GHPaths.app + DMG（ADR-0007 免费方案;需 Rust 工具链）
 ```
 
 **演出操作注意**：

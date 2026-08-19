@@ -77,14 +77,14 @@ async function main(): Promise<void> {
   const wss = new WebSocketServer({
     host: '127.0.0.1',
     port: MULTI_DS_CONTROL_PORT,
-    // 浏览器页面必带 Origin：只接受本机来源，挡掉任意网页连 5899 发 clearEstop/enableAll；
-    // 无 Origin（本地进程，如探针）放行
+    // 浏览器页面必带 Origin：只接受本机来源（含 Tauri 壳的 tauri://localhost——ADR-0007 打包后的
+    // 页面 Origin），挡掉任意网页连 5899 发 clearEstop/enableAll；无 Origin（本地进程，如探针）放行
     verifyClient: (info: { req: { headers: Record<string, string | string[] | undefined> } }): boolean => {
       const origin = info.req.headers.origin;
       if (origin === undefined) return true;
       try {
         const url = new URL(origin);
-        return (url.protocol === 'http:' || url.protocol === 'https:') &&
+        return (url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'tauri:') &&
           (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]');
       } catch {
         return false;
