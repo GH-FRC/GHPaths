@@ -1,0 +1,42 @@
+plugins {
+    id "java"
+    id "edu.wpi.first.GradleRIO" version "2026.1.1"
+    // TODO(Phase 0): 上面版本号按 WPILib VS Code 扩展实际安装的 2026 版核对后固定（ADR-0004 冻结栈）
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+def ROBOT_MAIN_CLASS = "frc.ghpaths.Main"
+
+deploy {
+    targets {
+        roborio("roborio") {
+            team = project.property("teamNumber") as int
+        }
+    }
+    artifacts {
+        frcJava("robotJava") {
+            targets << "roborio"
+        }
+    }
+}
+
+def deployArtifact = artifacts.deployedJava
+
+wpi.java.deps.wpilib().each { implementation it }
+wpi.java.vendor.java().each { implementation it }
+wpi.java.deps.vendor.java().each { implementation it }
+wpi.sim.addWebsocketSimExtensions().each { simImplementation it }
+
+test {
+    useJUnitPlatform()
+}
+
+// TODO(Phase 0): 语法自检清单——本工程未经编译验证（写作环境无 GradleRIO 依赖下载条件）：
+//   1. ./gradlew build 通过（WPILib VS Code "Build Robot Code"）
+//   2. GradleRIO 版本号与本地 WPILib 安装一致
+//   3. vendordeps/PathPlannerLib.json 版本号从 https://pathplanner.dev/pplib-choreo-interop 拉最新 2026.x
+//   4. NetworkTables API 签名与 WPILib 2026 javadoc 核对（ getStringTopic / getDoubleArrayTopic 等）
