@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "org.gh-frc.ghpaths",
   "build": {
-    "beforeDevCommand": "npm run dev -w @ghpaths/console -- --host 127.0.0.1",
-    "beforeBuildCommand": "npm run build -w @ghpaths/console",
+    "beforeDevCommand": "node ../../scripts/prepare-sidecars.mjs && npm run dev -- --host 127.0.0.1",
+    "beforeBuildCommand": "node ../../scripts/prepare-sidecars.mjs && npm run build",
     "devUrl": "http://127.0.0.1:5173",
     "frontendDist": "../dist"
   },
@@ -40,6 +40,11 @@
     "macOS": {
       "minimumSystemVersion": "13.0",
       "infoPlist": "Info.plist"
-    }
+    },
+    "externalBin": [
+      "binaries/node",
+      "binaries/ghpaths-sim.cjs",
+      "binaries/ghpaths-multids.cjs"
+    ]
   }
 }

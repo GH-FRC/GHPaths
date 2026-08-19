@@ -284,3 +284,31 @@ button:hover {
 .warn-text {
   color: #ffa657;
 }
+
+.backends-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: #161b22;
+  border: 1px solid #232932;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.backend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backend-uptime {
+  color: #7aa2f7;
+  font-size: 12px;
+}
+
+.backend-err {
+  color: #ff7b72;
+  font-size: 12px;
+}
