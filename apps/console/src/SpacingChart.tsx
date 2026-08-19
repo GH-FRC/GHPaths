@@ -22,10 +22,14 @@ export function SpacingChart({
   data,
   thresholdM,
   windowMs,
+  title,
+  unit = 'm',
 }: {
   data: TelemetryPoint[];
   thresholdM: number;
   windowMs: number;
+  title: string;
+  unit?: string;
 }): JSX.Element {
   const [hover, setHover] = useState<{ x: number; point: TelemetryPoint } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -68,7 +72,7 @@ export function SpacingChart({
 
   return (
     <div className="chart-card">
-      <div className="chart-title">最小机间距 <span className="chart-sub">m · 近 60s</span></div>
+      <div className="chart-title">{title} <span className="chart-sub">{unit} · 近 60s</span></div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
