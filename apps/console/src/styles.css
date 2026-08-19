@@ -550,3 +550,6 @@ button:hover {
 .replay-stats b { font-weight: 600; }
 .stat-ok { color: #7ee787; }
 .stat-bad { color: #ff7b72; font-weight: 600; }
+
+.batt-warn { color: #ffa657; }
+.batt-critical { color: #ff7b72; font-weight: 700; }
