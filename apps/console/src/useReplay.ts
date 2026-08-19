@@ -53,6 +53,8 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
   let meta: ReplayData['meta'] = null;
   let durationMs = 0;
   let lines = 0;
+  let minBatt = Number.POSITIVE_INFINITY;
+  let minBattTeam: RobotId = 0;
   for (const line of text.split('\n')) {
     const s = line.trim();
     if (s === '') continue;
@@ -76,6 +78,10 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
     } else if (rec.type === 'show') {
       events.push({ tRecMs: rec.tRecMs, event: rec.event });
       durationMs = Math.max(durationMs, rec.tRecMs);
+    } else if (rec.type === 'ds') {
+      if (rec.linked && Number.isFinite(rec.batteryVolts)) {
+        if (rec.batteryVolts < minBatt) { minBatt = rec.batteryVolts; minBattTeam = rec.team; }
+      }
     }
   }
   if (lines === 0) return { data: null, error: '空文件' };
@@ -104,8 +110,6 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
   }
   let minSep = Number.POSITIVE_INFINITY;
   let minSepAt = 0;
-  let minBatt = Number.POSITIVE_INFINITY;
-  let minBattTeam: RobotId = allTeams[0] ?? 0;
   const breaches: Array<[number, number]> = [];
   let inBreach = false;
   for (const t of timestamps) {
