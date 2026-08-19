@@ -1,7 +1,7 @@
 # GHPaths 可行性研究报告
 ## 面向机器人表演的 FRC 多机器人路径规划与监控系统
 
-> 研究日期：2026-08-18（**v1.3（2026-08-19）：新增第八节"可视化与遥测子系统"，决策记录见 ADR-0006**；v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
+> 研究日期：2026-08-18（**v1.4（2026-08-19）：新增 §7.5"分发与安装体验"，决策记录见 ADR-0007**；**v1.3（2026-08-19）：新增第八节"可视化与遥测子系统"，决策记录见 ADR-0006**；v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
 > 研究范围：技术可行性、网络架构、使能控制、现有工具复用性、替代方案、风险与路线图
 
 ---
@@ -12,13 +12,14 @@
 
 唯一需要自研攻坚的核心难点是 **Driver Station 使能问题**：roboRIO 必须持续收到 Driver Station 的特定数据包才会使能电机，而官方 DS 一台电脑只能运行一个实例、只控制一台机器人。解决方案是自研一个"多机 DS"组件（实现 FRC DS 通信协议，一台电脑同时充当 6 台机器人的 DS）。协议本身是公开的、有开源参考实现（OpenDS，维护到 2026 赛季协议），以你们"AI 工具主导开发维护"的模式，这是完全做得动的工程量。
 
-需要接受的三个现实约束与一个补充结论：
+需要接受的现实约束与补充结论：
 
 1. **"一台电脑连 6 个机器人的 WiFi"要换个姿势**：不是电脑分别去连 6 个热点，而是让 6 台机器人连到同一个网络里，电脑也在这个网络中。这是标准做法，详见第三节。
 2. **PathPlanner / Choreo 均无多机器人支持**（经调研确认），多机规划界面必须自研——但这正是这个项目的价值所在，且两者的轨迹库（均为宽松开源许可证）可以在机器人端复用。
 3. **FRC 控制系统换代已启动**：2027 起启用 Systemcore 新控制体系；新 DS（已 alpha，跨平台含 macOS）只支持 Systemcore、不兼容 roboRIO，WPILib 也已于 2026-05 冻结 roboRIO 侧维护。对不上场比赛的表演项目反而是利好——锁定 2026 冻结栈后，DS 协议与机器人软件栈不再逐年漂移（详见 5.4 节）。
 4. **Mac 作为演控主力机完全可行**：日常开发、排练、演出全流程都可以只靠 Mac 完成；需要借道 Windows 的一次性环节仅剩 roboRIO 烧录，以及仅 OpenMesh 旧无线电才涉及的刷写（现役 VH-109 无线电全程 Mac 网页/Docker 完成）。详见第七节的逐项对照。
 5. **可视化与遥测子系统（v1.3）**：自研 2D/3D 多机视图（含炮塔等机构姿态）与遥测图表为主，AdvantageScope 三条路径作备胎；录制回放以既有 JSONL 为起点、增加 WPILOG 互通格式，使自研视图与 AdvantageScope 共享同一份数据与日志。见第八节。
+6. **"双击即用"的安装体验（v1.4）**：对标 AdvantageScope 的零警告安装可行，但需要 Apple Developer Program（$99/年）做 Developer ID 签名 + 公证——PathPlanner 与 Choreo 其实没做到（未签名，macOS 15 起首次打开要进设置点"仍要打开"）。首次运行唯一免不了的弹窗是"本地网络"权限（应用内对话框点"允许"即完成，不是设置项）。见 §7.5。
 
 ---
 
@@ -31,6 +32,7 @@
 | 3 | 一台电脑同时连接 6 台机器人 | 优先 FRC 原生控制体系，尽量少改动 |
 | 4 | 演控电脑偏好 **Mac**（2026-08-18 补充） | 已评估各环节 macOS 兼容性，见第七节 |
 | 5 | 内建可视化：多机 2D/3D 视图（含机构姿态，如炮塔指向）、遥测图表（炮塔电压/速度等）、全程录制回放；同时保留调起真正 AdvantageScope 的能力作备选（2026-08-19 补充） | 设计见第八节与 ADR-0006 |
+| 6 | 安装体验：双击 .dmg 即装即用，不出"危害性文件"警告，不去终端、尽量不去设置（2026-08-19 补充） | 结论见 §7.5 与 ADR-0007：对标 AdvantageScope 需 Developer ID 签名 + 公证（Apple Developer Program，$99/年） |
 
 附加约束：开发维护主要依靠 AI 工具（Claude、GLM、DeepSeek、Codex），技术选型需考虑 AI 友好性。
 
@@ -220,6 +222,7 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 | **无线电刷写——OpenMesh OM5P（遗留工具链）** | ❌ | ✅ | FRC Radio Configuration Utility **仅 Windows**，且已成遗留工具（仅当机器人装 OM5P 时才需要）。Mac 解法：Windows 虚拟机（UTM 免费，桥接 USB 网卡直通）或借机；该工具会强改网卡设置，在 VM 里做可避免污染本机网络。**频率：一次性** |
 | **无线电配置——VH-109（现役）** | ✅ | ✅ | **任意 OS 网页配置（radio.local / 192.168.69.1）+ 跨平台 Docker Kiosk Programmer，全程不需要 Windows**——机器人若是 VH-109，本项从 Windows 清单中消失 |
 | **官方 FRC Driver Station** | ❌ | ✅ | **仅 Windows**（NI FRC Game Tools 体系，2026 赛季及之前）。对本项目影响很小：全自动驾驶方案本就不依赖官方 DS；仅兜底方案 ② 的 6 台小电脑需选 Windows 迷你机。社区有在 Apple Silicon 上用 Whisky（Wine）跑通 2026 DS 的非官方先例，仅作应急参考。**2027 起官方新 DS 支持 macOS——但仅限 Systemcore 新控制体系，不兼容 roboRIO**（roboRIO 永远停在现有 Windows DS） |
+| **GHPaths 应用分发（.dmg 双击安装）** | ✅ 需签名+公证 | ✅ 同左 | 对标 AdvantageScope 的零警告体验需 Developer ID 签名 + 公证（$99/年，ADR-0007）；不做则等同 PathPlanner/Choreo：macOS 15 起首次打开需进设置"仍要打开"。详见 §7.5 |
 
 ### 7.2 需要 Windows 的完整清单（v1.2 依核查修订）
 
@@ -239,6 +242,32 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 ### 7.4 对选型的结论
 
 推荐组合：**Mac 做演控与开发主力（唯一日常设备）+ 一个随手可得的 Windows 环境（虚拟机或借机）处理 roboRIO 烧录与（仅 OM5P 机型才涉及的）无线电刷写**。若组织内完全没有 Windows 资源，无线电刷写也可委托任何 FRC 战队/赛场朋友代刷（配置文件可控、结果可验证）。
+
+### 7.5 分发与安装体验：双击即用的真实门槛（v1.4 新增）
+
+用户期望：下载 .dmg → 双击 → 拖进 Applications 就能用——不弹"危害性文件"警告、不去终端、不去设置。**先看三个参照工具的实况（2026-08-19 一手核查）**：
+
+| 工具 | Developer ID 签名 + 公证 | 实际安装体验 | 依据 |
+|---|:---:|---|---|
+| AdvantageScope | ✅ | 真·双击即用，零警告 | 其 CI（build.yml）加载签名证书（CSC_LINK）与公证凭据（APPLE_ID 系列）后出 arm64/x64 dmg |
+| PathPlanner | ❌ | dmg 可装，首次打开被 Gatekeeper 拦（"无法验证开发者"） | pathplanner-ci.yaml 全流程仅 flutter build + create-dmg，无任何签名/公证步骤 |
+| Choreo | ❌ | 同上（"来自身份不明的开发者"） | 维护者在 issue #428 原话："We don't know how to sign the binary (we have Tauri skip the process)"，用户需手动绕过 |
+
+即：**三个参照里只有 AdvantageScope 达到了你要的标准**；PathPlanner/Choreo 的"能用"是用户自己点掉了警告（或用的旧版 macOS）。
+
+**Gatekeeper 的硬规则**：
+
+- 浏览器下载的未公证 app 会被拦；**macOS 15（Sequoia）起"右键→打开"的绕过已被移除**，必须进 系统设置 → 隐私与安全性 → "仍要打开"（还要密码/Face ID）——这正是要避免的体验；部分损坏签名场景还会显示"已损坏，应移到废纸篓"的吓人假警告。
+- 达到 AdvantageScope 档体验的正规路径只有一条：**Apple Developer Program（$99/年）→ Developer ID Application 证书 → 签名 + 公证（notarytool）**。Tauri v2 对此为一等支持（构建参数签名 + CI 公证），GitHub Actions 免费执行；AdvantageScope 正是此做法。
+- 不付费 = PathPlanner/Choreo 同款：演出装机环境（借来的 Mac、剧场技术员操作）不可控，不推荐。
+
+**权限弹窗的真相（"尽量不去设置"）**：
+
+- **"本地网络"权限（macOS 15+）无法消除**——它是隐私权限，与签名公证无关，公证过的 app（含 AdvantageScope）首次访问局域网同样会弹。但它是**应用内对话框**（点"允许"即完成），不需要进系统设置；前提是 Info.plist 声明 `NSLocalNetworkUsageDescription`（浏览 Bonjour 服务另需 `NSBonjourServices`）。只有误点"不允许"才需要去 设置 → 隐私与安全性 → 本地网络 手动打开——首启向导引导一下即可规避。演控台每次出站探测失败时给出明确的"去授权"指引（启动自检已有此项）。
+- 防火墙弹窗只在防火墙开启时出现（系统默认关闭，签名 app 自动放行）。
+- **打包要求**：multi-DS 等子进程作为 sidecar 收进 .app 内（bundle 签名整体覆盖，子进程不单独触发 Gatekeeper）；其网络权限按"责任进程"归属父应用——预期一次弹窗覆盖主进程+子进程，列入打包后实测项（若实测异常：DS socket 移入主进程或改用 launchd 服务并纳入首启向导）。
+
+**结论**：双击即用可以做到，条件是 Apple Developer Program（$99/年）+ CI 签名公证（ADR-0007）；换来的是演出季任何一台新 Mac 上"下载-双击-拖入-可用"的确定性。这是少数花钱就能直接消除的工程风险。
 
 ---
 
@@ -317,6 +346,7 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 | 无线电刷写依赖 Windows 环境（仅 OpenMesh OM5P 机型；VH-109 走网页 + Docker 全程 Mac） | 低 | Phase 0 盘点无线电型号；仅 OM5P 才需常备 UTM 虚拟机镜像或记录可借用的 Windows 机器 |
 | 3D 模型资产制作工作量（美术大于编码） | 中 | 低模/几何体占位起步；CAD→Blender→.glb 管线沉淀一次；资产与 AdvantageScope Custom Assets 共用（一处制作两边受益） |
 | AdvantageScope 版本演进影响备胎路径 | 低 | 只依赖其公开接口（NT4 客户端、WPILOG 格式、Custom Assets），不碰内部实现 |
+| 正式发版未签名公证 → 演出季新装 Mac 被 Gatekeeper 拦截，现场装机受阻 | 中 | ADR-0007：演出季前完成 Developer ID 签名 + 公证 CI；兜底 SOP：装机时"系统设置→隐私与安全性→仍要打开"（每机一次性） |
 
 ---
 
@@ -337,6 +367,8 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 **Phase 4 —— 全编制联排（按演出排期）**
 6 台全编制、安全体系完备、现场压力测试、带妆联排。
 
+> v1.4 增补：Tauri 打包里程碑（首次正式发版）必须包含 Developer ID 签名 + 公证（ADR-0007）；Apple Developer Program（$99/年）采购列入待办，赶在第一次给他人装机之前完成。
+
 > 工期为数量级估计，AI 辅助开发可显著压缩，但 Phase 0/1 的实机验证环节无法省略。
 
 ---
@@ -346,6 +378,7 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 - **能不能做？** 能。网络与监控是成熟路径，使能控制有明确的攻坚方案与兜底。
 - **Mac 能不能当主力？** 能，且很合适：除"roboRIO 烧录"与（仅 OM5P 机型才有的）"无线电刷写"等一次性环节外，全流程 Mac 原生完成；自研部分（TS/React/Tauri + NT4 + multi-DS）本就跨平台，Mac 与 Windows 只是部署选项之争，不影响架构。
 - **可视化与遥测（v1.3）怎么做？** 自研 2D/3D 与图表为主、AdvantageScope 备胎为辅：机器人端一份 topic 同时喂两边，机构姿态沿用 AS 的 Pose3d 组件约定，录制增加 WPILOG 互通——自研视图出 bug 时备胎随时顶上，数据与日志全程一套。
+- **能像 AdvantageScope 一样双击即用吗（v1.4）？** 能，且是少数花钱就能直接消除的风险：$99/年的 Apple Developer Program + CI 签名公证 = 零警告安装（PathPlanner/Choreo 并未做到这一点）；首次运行唯一免不了的是"本地网络"应用内弹窗，点"允许"即完成，不是设置项。
 - **要不要改机器人硬件？** 不用。唯一的"改动"是无线电配置刷写（软件性质，可逆）。
 - **最大的坑在哪？** DS 协议实现（有参考、可验证、有兜底）与舞台安全体系（靠设计与流程）。
 - **最应该立刻做什么？** Phase 0：找一台机器人把"桥接模式 + 自研 DS 使能"链路打通。一天之内就能知道最难的那块骨头有多硬。
@@ -372,6 +405,11 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 - [AdvantageScope Log Files（格式支持与多文件时间对齐）](https://docs.advantagescope.org/overview/log-files/) ／ [Custom Assets（.glb 模型与 3D 组件姿态约定）](https://docs.advantagescope.org/more-features/custom-assets/)
 - [wpilog-parser（TS 读取 WPILOG）— npm](https://www.npmjs.com/package/wpilog-parser)
 - [Using CAD in AdvantageScope — YETI Wiki（CAD→glb 模型简化实践）](https://wiki.yetirobotics.org/books/robot-software/page/using-cad-in-advantagescope)
+- [AdvantageScope build.yml（签名 + 公证的 CI 实证）— GitHub](https://github.com/Mechanical-Advantage/AdvantageScope/blob/main/.github/workflows/build.yml) ／ [PathPlanner pathplanner-ci.yaml（无签名步骤的对照）](https://github.com/mjansen4857/pathplanner/blob/main/.github/workflows/pathplanner-ci.yaml)
+- [Choreo issue #428（macOS 未签名警告与维护者答复）— GitHub](https://github.com/SleipnirGroup/Choreo/issues/428)
+- [Apple removes Control-click option for skipping Gatekeeper in macOS Sequoia — AppleInsider](https://appleinsider.com/articles/24/08/06/apple-removes-control-click-option-for-skipping-gatekeeper-in-macos-sequoia) ／ [Ars Technica 同题报道](https://arstechnica.com/gadgets/2024/08/macos-15-sequoia-makes-you-jump-through-more-hoops-to-disable-gatekeeper-app-checks/)
+- [macOS Code Signing（Tauri v2 官方签名/公证指南）](https://v2.tauri.app/distribute/sign/macos/)
+- [TN3179: Understanding Local Network Privacy — Apple Developer](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)
 - [NetworkTablesClients（wpilibsuite；实况：仅含休眠的 .NET NT3 客户端，官方无 JS/TS 实现）— GitHub](https://github.com/wpilibsuite/NetworkTablesClients) ／ [ntcore-ts（社区 TS 客户端，本项目采用）](https://github.com/cjlawson02/ntcore-ts)
 - [The 2027 FIRST Driver Station — WPILib Blog（2026-04-24）](https://wp.wpi.edu/wpilib/2026/04/24/the-2027-first-driver-station/)
 - [FRC Radio Configuration Utility 下载 — FIRST TeamForge](https://usfirst.collab.net/sf/frs/do/listReleases/projects.wpilib/frs.frc_radio_configuration_utility)
@@ -387,4 +425,4 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 
 ---
 
-*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）；2026-08-19 增补第八节可视化与遥测子系统（v1.3，ADR-0006）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
+*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）；2026-08-19 增补第八节可视化与遥测子系统（v1.3，ADR-0006）与 §7.5 分发与安装体验（v1.4，ADR-0007）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
