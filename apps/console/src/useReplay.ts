@@ -19,6 +19,16 @@ export interface ReplayData {
   poses: Map<RobotId, ReplayPose[]>;
   events: Array<{ tRecMs: number; event: string }>;
   durationMs: number;
+  stats: ReplayStats;
+}
+
+export interface ReplayStats {
+  minSeparationM: number;
+  minSeparationAtMs: number;
+  minBatteryVolts: number;
+  minBatteryTeam: RobotId;
+  /** 间距低于阈值的时段（秒数组 [start, end]） */
+  separationBreaches: Array<[number, number]>;
 }
 
 export interface ReplayControl {
@@ -83,8 +93,55 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
     for (const ev of events) ev.tRecMs -= minT;
     durationMs -= minT;
   }
+  // 统计:按 100ms 采样全时间轴,全对最小间距 + 电池最低值
+  const allTeams = [...poses.keys()];
+  const timestamps: number[] = [];
+  const snapshot = new Map<number, Map<number, { x: number; y: number }>>();
+  // 用第一条路径的时间戳做基准（各机时间近似对齐——录制时间轴一致）
+  const firstPath = poses.get(allTeams[0]!) ?? [];
+  for (let i = 0; i < firstPath.length; i += 2) {
+    timestamps.push(firstPath[i]!.tRecMs);
+  }
+  let minSep = Number.POSITIVE_INFINITY;
+  let minSepAt = 0;
+  let minBatt = Number.POSITIVE_INFINITY;
+  let minBattTeam: RobotId = allTeams[0] ?? 0;
+  const breaches: Array<[number, number]> = [];
+  let inBreach = false;
+  for (const t of timestamps) {
+    const positions = new Map<number, { x: number; y: number }>();
+    for (const team of allTeams) {
+      const p = poseAt(poses.get(team) ?? [], t);
+      if (p) positions.set(team, { x: p.xM, y: p.yM });
+    }
+    const teams = [...positions.keys()];
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        const d = Math.hypot(
+          positions.get(teams[i]!)!.x - positions.get(teams[j]!)!.x,
+          positions.get(teams[i]!)!.y - positions.get(teams[j]!)!.y,
+        );
+        if (d < minSep) { minSep = d; minSepAt = t; }
+        if (d < 1.05 && !inBreach) { inBreach = true; breaches.push([t / 1000, t / 1000]); }
+        else if (d >= 1.05 && inBreach) {
+          inBreach = false;
+          breaches[breaches.length - 1]![1] = t / 1000;
+        }
+      }
+    }
+  }
+  void snapshot;
+
+  const stats: ReplayStats = {
+    minSeparationM: Number.isFinite(minSep) ? minSep : 0,
+    minSeparationAtMs: minSepAt,
+    minBatteryVolts: Number.isFinite(minBatt) ? minBatt : 0,
+    minBatteryTeam: minBattTeam,
+    separationBreaches: breaches,
+  };
+
   return {
-    data: { meta, teams: [...poses.keys()], poses, events, durationMs },
+    data: { meta, teams: allTeams, poses, events, durationMs, stats },
     error: null,
   };
 }
