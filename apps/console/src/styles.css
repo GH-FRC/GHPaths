@@ -601,3 +601,21 @@ button:hover {
   fill: #9aa4b2;
   font-size: 5px;
 }
+
+.replay-breaches {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  margin: 0 4px;
+  border-radius: 3px;
+  background: #232932;
+  overflow: hidden;
+}
+
+.breach-mark {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #ff7b72;
+  border-radius: 1px;
+}
