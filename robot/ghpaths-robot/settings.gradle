@@ -1,0 +1,9 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url "https://frcmaven.first.wpi.edu/release" }
+    }
+}
+
+rootProject.name = "ghpaths-robot"

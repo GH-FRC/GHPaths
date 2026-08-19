@@ -1,0 +1,20 @@
+{
+    "fileName": "PathplannerLib.json",
+    "name": "PathPlannerLib",
+    "version": "2026.1.2",
+    "uuid": "1b42324f-17c6-4875-8e77-1c312bc8c786",
+    "frcYear": "2026",
+    "mavenUrls": [
+        "https://3015r2robotics.github.io/pathplannerlib/PathPlannerLib.json"
+    ],
+    "jsonUrl": "https://3015r2robotics.github.io/pathplannerlib/PathPlannerLib.json",
+    "javaDependencies": [
+        {
+            "groupId": "com.pathplanner.lib",
+            "artifactId": "PathPlannerLib-java",
+            "version": "2026.1.2"
+        }
+    ],
+    "jniDependencies": [],
+    "cppDependencies": []
+}

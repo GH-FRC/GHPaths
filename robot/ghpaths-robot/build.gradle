@@ -1,0 +1,77 @@
+plugins {
+    id "java"
+    // TODO(Phase 0): 版本号按 WPILib VS Code 扩展实际安装的 2026 版核对后固定（ADR-0004 冻结栈）
+    id "edu.wpi.first.GradleRIO" version "2026.1.1"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+def ROBOT_MAIN_CLASS = "frc.ghpaths.Main"
+
+// 部署目标（2026 官方模板形态）
+deploy {
+    targets {
+        roborio("roborio") {
+            team = project.property("teamNumber") as int
+        }
+    }
+    artifacts {
+        frcJava("robotJava") {
+            targets << "roborio"
+        }
+        // 部署静态文件（.wpilib / deploy 目录）——Phase 2 放路径文件
+        frcStaticFileDeploy("deployFiles") {
+            files = project.fileTree("src/main/deploy")
+            deleteMissingFiles = false
+            targets << "roborio"
+        }
+    }
+}
+
+def deployArtifact = deploy.targets.roborio.artifacts.robotJava
+
+wpi.java.configureExecutableTasks(deployArtifact)
+wpi.java.configureTestTasks(test)
+
+wpi.java.addJavadocArtifact()
+wpi.java.addSourceArtifact()
+
+// 依赖（vendordeps 由 GradleRIO 按 vendordeps/ 目录自动加载）
+dependencies {
+    implementation wpi.java.deps.wpilib()
+    implementation wpi.java.vendor.java()
+
+    roborioDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.roborio)
+    roborioRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.roborio)
+
+    roborioDebug wpi.java.vendor.jniDebug(wpi.platforms.roborio)
+    roborioRelease wpi.java.vendor.jniRelease(wpi.platforms.roborio)
+
+    simulationDebug wpi.sim.enableDebug()
+    simulationRelease wpi.sim.enableRelease()
+}
+
+// fat jar：部署到 roboRIO 的最终产物（2026 官方模板）
+jar {
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    from("src/main/java") {
+        into "sources"
+    }
+    from("src/main/deploy") {
+        into "deploy"
+    }
+    manifest edu.wpi.first.gradlerio.GradleRIOPlugin.javaManifest(ROBOT_MAIN_CLASS)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+deployArtifact.jarTask = jar
+wpi.sim.enableSimulation()
+
+// TODO(Phase 0): 语法自检清单——本工程未经编译验证（写作环境无 GradleRIO 依赖下载条件）：
+//   1. WPILib VS Code "Build Robot Code" 通过（首次构建下载依赖需联网）
+//   2. GradleRIO 插件版本与本地 WPILib 安装一致；不一致时以本地为准改此处版本号
+//   3. vendordeps/PathPlannerLib.json 为官方 2026.1.2 版（审查已核实格式含 frcYear）
+//   4. gradle wrapper 由 WPILib VS Code 生成（本仓库未含 wrapper 二进制文件）
