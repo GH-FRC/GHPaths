@@ -280,3 +280,7 @@ button:hover {
 .robot-dot-4 { color: #7ee787; }
 .robot-dot-5 { color: #79c0ff; }
 .robot-dot-6 { color: #d2a8ff; }
+
+.warn-text {
+  color: #ffa657;
+}

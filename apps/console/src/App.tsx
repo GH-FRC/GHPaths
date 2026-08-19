@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { createDemoShow, DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
+import { createDemoShow, DEFAULT_FOOTPRINT, DEFAULT_STAGE, DEMO_SHOW_ID, stageGeofence } from '@ghpaths/field-model';
 import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
 import { useMultiDs } from './useMultiDs';
@@ -78,7 +78,8 @@ function downloadJsonl(text: string): void {
   const p = (n: number): string => String(n).padStart(2, '0');
   a.download = `showlog-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}.jsonl`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Safari 对即时吊销的 blob URL 有中止下载的历史问题，延迟吊销
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 export function App() {
@@ -92,7 +93,7 @@ export function App() {
   const multiDs = useMultiDs();
   const teams = useMemo(() => simTopology.teams(), []);
   const demoShow = useMemo(() => createDemoShow(teams), [teams]);
-  const show = useShow(publishClock, sendCommand, teams, demoShow.durationShowUs, recorder.pushShowEvent);
+  const show = useShow(publishClock, sendCommand, teams, demoShow.durationShowUs, recorder.pushShowEvent, DEMO_SHOW_ID);
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
@@ -100,16 +101,32 @@ export function App() {
   const replayData = replay.data;
   const replayActive = replayData !== null;
 
-  // multi-DS 状态落盘（recorder 内部按内容去重）
+  // multi-DS 状态落盘（recorder 内部按内容去重；pushDs 为稳定引用）
   useEffect(() => {
     for (const [team, st] of multiDs.robots) {
       recorder.pushDs(team, st.state, st.linked, st.batteryVolts);
     }
-  }, [multiDs.robots, recorder]);
+  }, [multiDs.robots, recorder.pushDs]);
+
+  // 未导出的日志在关页/刷新前拦一道
+  useEffect(() => {
+    if (recorder.lineCount === 0 || recorder.exported) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent): void => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [recorder.lineCount, recorder.exported]);
 
   const startShow = (): void => {
+    // 上一场未导出 → 先自动救出再清缓冲（联排连跑多场不丢日志）
+    if (recorder.lineCount > 0 && !recorder.exported) {
+      const t = recorder.exportText();
+      if (t) downloadJsonl(t);
+    }
     multiDs.send({ type: 'enableAll' });
-    recorder.begin(teams, 'demo-wave');
+    recorder.begin(teams, DEMO_SHOW_ID);
     show.start();
   };
   const stopShow = (): void => {
@@ -167,18 +184,29 @@ export function App() {
                 导出日志
               </button>
             )}
-            <button onClick={() => fileInputRef.current?.click()}>回放日志</button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".jsonl,.txt,application/jsonl,text/plain"
-              style={{ display: 'none' }}
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (f) replay.loadText(await f.text());
-                e.target.value = '';
-              }}
-            />
+            {show.phase === 'idle' && (
+              <>
+                <button onClick={() => fileInputRef.current?.click()}>回放日志</button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".jsonl,.txt,application/jsonl,text/plain"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (show.phase !== 'idle') {
+                      // 演出进行中不得进回放：画布会被录像接管而失去主停止键
+                      replay.loadText('');
+                      e.target.value = '';
+                      return;
+                    }
+                    replay.loadText(await f.text());
+                    e.target.value = '';
+                  }}
+                />
+              </>
+            )}
           </>
         )}
       </header>
@@ -233,6 +261,9 @@ export function App() {
                 />
               ))}
         </svg>
+        {!replayActive && replay.parseError && (
+          <p className="hint warn-text">日志解析失败：{replay.parseError}</p>
+        )}
         {replayActive ? (
           <div className="replay-bar">
             <span className="replay-time">
@@ -251,7 +282,7 @@ export function App() {
             <span className="replay-events">
               {replayData.events.map((ev, i) => (
                 <span key={i} className="event-mark" title={ev.event}>
-                  {ev.event[0]}
+                  {{ start: '▶', stop: '■', hold: '⏸', resume: '⏵', ended: '✓' }[ev.event] ?? ev.event[0]}
                 </span>
               ))}
             </span>

@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RobotId, ShowClockSample } from '@ghpaths/show-protocol';
+import { DEMO_SHOW_ID } from '@ghpaths/field-model';
 
 export type ShowPhase = 'idle' | 'running' | 'held';
 
@@ -31,6 +32,7 @@ export function useShow(
   teams: RobotId[],
   durationShowUs: number,
   onEvent?: (event: 'start' | 'hold' | 'resume' | 'stop' | 'ended') => void,
+  showId: string = DEMO_SHOW_ID,
 ): ShowControl {
   const [phase, setPhase] = useState<ShowPhase>('idle');
   const [tShowSeconds, setTShowSeconds] = useState(0);
@@ -77,10 +79,10 @@ export function useShow(
     setPhase('running');
     onEventRef.current?.('start');
     for (const team of teams) {
-      sendCommand(team, { kind: 'arm', showId: 'demo-wave', segmentId: 0 });
-      sendCommand(team, { kind: 'start', showId: 'demo-wave', tStartShowUs: 0 });
+      sendCommand(team, { kind: 'arm', showId, segmentId: 0 });
+      sendCommand(team, { kind: 'start', showId, tStartShowUs: 0 });
     }
-  }, [sendCommand, teams]);
+  }, [sendCommand, teams, showId]);
 
   const hold = useCallback((): void => {
     if (phaseRef.current !== 'running') return;

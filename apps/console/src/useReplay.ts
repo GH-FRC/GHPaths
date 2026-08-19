@@ -55,6 +55,10 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
     }
     if (rec.type === 'meta') meta = rec;
     else if (rec.type === 'pose') {
+      // 结构校验：缺字段/非有限值的行按坏行处理（防幽灵机位与 NaN 变换）
+      if (!Number.isFinite(rec.tRecMs) || !Number.isFinite(rec.tShowUs) ||
+          !Number.isFinite(rec.xM) || !Number.isFinite(rec.yM) ||
+          !Number.isFinite(rec.headingRad) || !Number.isInteger(rec.robot)) continue;
       const arr = poses.get(rec.robot) ?? [];
       arr.push({ tRecMs: rec.tRecMs, tShowUs: rec.tShowUs, xM: rec.xM, yM: rec.yM, headingRad: rec.headingRad });
       poses.set(rec.robot, arr);
@@ -126,7 +130,8 @@ export function useReplay(): ReplayControl {
     let last = performance.now();
     const tick = (): void => {
       const now = performance.now();
-      cursorRef.current += now - last;
+      // 单帧步进钳制 ≤250ms：后台标签回前台不吞掉整段时间
+      cursorRef.current += Math.min(now - last, 250);
       last = now;
       if (cursorRef.current >= data.durationMs) {
         cursorRef.current = data.durationMs;
@@ -178,11 +183,22 @@ export function useReplay(): ReplayControl {
         posesAtCursor.set(robot, p);
         tShowAtCursor = Math.max(tShowAtCursor, p.tShowUs);
       }
-      // 轨迹窗：光标前 5s，最多 120 点（二分定位后回溯，隔点采样）
+      // 轨迹窗：先二分定位光标下标，再回溯 ≤240 条（5s 窗，隔点采样 ≤120 点）
+      let lo2 = 0;
+      let hi2 = samples.length - 1;
+      let idx = -1;
+      while (lo2 <= hi2) {
+        const mid = (lo2 + hi2) >> 1;
+        if (samples[mid]!.tRecMs <= cursorMs) {
+          idx = mid;
+          lo2 = mid + 1;
+        } else {
+          hi2 = mid - 1;
+        }
+      }
       const trail: Array<{ x: number; y: number }> = [];
-      for (let i = samples.length - 1; i >= 0; i -= 2) {
+      for (let i = idx; i >= 0 && i > idx - 240; i -= 2) {
         const s = samples[i]!;
-        if (s.tRecMs > cursorMs) continue;
         if (s.tRecMs < cursorMs - 5000) break;
         trail.push({ x: s.xM, y: s.yM });
         if (trail.length >= 120) break;

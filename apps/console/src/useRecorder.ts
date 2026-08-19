@@ -11,6 +11,8 @@ const MAX_LINES = 300_000;
 export interface Recorder {
   recording: boolean;
   lineCount: number;
+  /** 上一场已导出？（未导出就开新场时，调用方应先救出旧日志） */
+  exported: boolean;
   begin: (teams: RobotId[], showId: string | null) => void;
   end: () => void;
   pushPose: (robot: RobotId, pose: PoseSample) => void;
@@ -26,6 +28,10 @@ export function useRecorder(): Recorder {
   const [lineCount, setLineCount] = useState(0);
   const linesRef = useRef<string[]>([]);
   const recordingRef = useRef(false);
+  const exportedRef = useRef(true);
+  const [exported, setExported] = useState(true);
+  // meta 不进环形缓冲（淘汰只丢数据行，导出恒有头）
+  const metaLineRef = useRef<string | null>(null);
   // DS 行按内容去重（10Hz 状态广播 × 6 台，只在变化时落盘）
   const lastDsRef = useRef(new Map<RobotId, string>());
 
@@ -33,18 +39,23 @@ export function useRecorder(): Recorder {
     if (!recordingRef.current) return;
     const arr = linesRef.current;
     arr.push(JSON.stringify(line));
-    if (arr.length > MAX_LINES) arr.splice(0, arr.length - MAX_LINES);
-    setLineCount(arr.length);
+    // 分块淘汰（避免每条 splice 搬移 30 万元素）；lineCount 更新节流
+    if (arr.length > MAX_LINES + 8192) arr.splice(0, 8192);
+    if (arr.length % 64 === 0) setLineCount(arr.length);
   }, []);
 
   const begin = useCallback((teams: RobotId[], showId: string | null): void => {
     linesRef.current = [];
     lastDsRef.current.clear();
     recordingRef.current = true;
+    exportedRef.current = false;
+    setExported(false);
     setRecording(true);
     setLineCount(0);
-    append({ type: 'meta', v: 1, recordedAt: new Date().toISOString(), teams, showId });
-  }, [append]);
+    metaLineRef.current = JSON.stringify({
+      type: 'meta', v: 1, recordedAt: new Date().toISOString(), teams, showId,
+    });
+  }, []);
 
   const end = useCallback((): void => {
     recordingRef.current = false;
@@ -53,6 +64,9 @@ export function useRecorder(): Recorder {
 
   const pushPose = useCallback(
     (robot: RobotId, pose: PoseSample): void => {
+      // 非有限值（NaN 等）落盘会变 null 坐标，直接跳过该样本
+      if (!Number.isFinite(pose.tShowUs) || !Number.isFinite(pose.xM) ||
+          !Number.isFinite(pose.yM) || !Number.isFinite(pose.headingRad)) return;
       append({
         type: 'pose',
         tRecMs: performance.now(),
@@ -92,12 +106,16 @@ export function useRecorder(): Recorder {
 
   const exportText = useCallback((): string | null => {
     if (linesRef.current.length === 0) return null;
-    return linesRef.current.join('\n') + '\n';
+    exportedRef.current = true;
+    setExported(true);
+    const meta = metaLineRef.current;
+    return (meta ? meta + '\n' : '') + linesRef.current.join('\n') + '\n';
   }, []);
 
   return {
     recording,
     lineCount,
+    exported,
     begin,
     end,
     pushPose,
