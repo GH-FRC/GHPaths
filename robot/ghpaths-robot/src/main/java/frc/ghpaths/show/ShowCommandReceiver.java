@@ -18,6 +18,25 @@ import frc.ghpaths.Constants;
 public final class ShowCommandReceiver {
     public enum ShowState { IDLE, ARMED, RUNNING, HELD, STOPPED }
 
+    /** arm 命令携带的本机路径（极简映射;Phase 2 接 PathPlannerLib 后换正式类型） */
+    public static final class PathWaypoint {
+        public final double xM, yM, headingRad;
+        public final long tShowUs;
+        PathWaypoint(double xM, double yM, double headingRad, long tShowUs) {
+            this.xM = xM; this.yM = yM; this.headingRad = headingRad; this.tShowUs = tShowUs;
+        }
+    }
+    public static final class RobotPath {
+        public final int robot;
+        public final java.util.List<PathWaypoint> waypoints;
+        RobotPath(int robot, java.util.List<PathWaypoint> waypoints) {
+            this.robot = robot; this.waypoints = waypoints;
+        }
+    }
+
+    /** arm 命令装载的路径（null = 未装载/用内置;ShowCoordinator 消费） */
+    private RobotPath armedPath;
+
     private ShowState state = ShowState.IDLE;
     /** 已 arm 且未 stop（start 的可接受域;比 state==ARMED 宽——覆盖 hold 后重复 start） */
     private boolean armed;
@@ -47,7 +66,8 @@ public final class ShowCommandReceiver {
         if (kind == null) return;
         switch (kind) {
             case "arm" -> {
-                // TODO(Phase 2): PathPlannerLib 路径装载（showId/segmentId → 本机轨迹）
+                // arm.path 携带编辑器路径（JSON;极简解析,Phase 2 换 PathPlannerLib 正式装载）
+                armedPath = parsePath(json);
                 state = ShowState.ARMED;
                 armed = true;
                 fault = "";
@@ -79,11 +99,40 @@ public final class ShowCommandReceiver {
     }
 
     public ShowState state() { return state; }
+    public RobotPath armedPath() { return armedPath; }
     public boolean ntFrozen() { return ntFrozen; }
     public double tStartShowS() { return tStartShowS; }
     public String fault() { return fault; }
     /** 就位检查失败时由 ShowCoordinator 设置 */
     public void setFault(String f) { fault = f; }
+
+    /** 极简路径解析："waypoints":[{"xM":..,"yM":..,"headingRad":..,"tShowUs":..},..] */
+    private static RobotPath parsePath(String json) {
+        int team = Constants.teamNumber();
+        String wpKey = "\"waypoints\":[";
+        int wi = json.indexOf(wpKey);
+        if (wi < 0) return null;
+        java.util.List<PathWaypoint> wps = new java.util.ArrayList<>();
+        int pos = wi + wpKey.length();
+        while (pos < json.length()) {
+            int objStart = json.indexOf('{', pos);
+            if (objStart < 0) break;
+            int objEnd = json.indexOf('}', objStart);
+            if (objEnd < 0) break;
+            String obj = json.substring(objStart, objEnd + 1);
+            double x = extractNumber(obj, "xM");
+            double y = extractNumber(obj, "yM");
+            double h = extractNumber(obj, "headingRad");
+            double t = extractNumber(obj, "tShowUs");
+            if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(h) || Double.isNaN(t)) {
+                return null; // 坏数据整体拒绝
+            }
+            wps.add(new PathWaypoint(x, y, h, (long) t));
+            pos = objEnd + 1;
+        }
+        if (wps.size() < 2) return null;
+        return new RobotPath(team, wps);
+    }
 
     private static String extractString(String json, String key) {
         String pat = "\"" + key + "\":\"";
