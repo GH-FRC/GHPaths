@@ -42,6 +42,9 @@ export function TimelineBar({ editor }: { editor: PathEditor }): JSX.Element | n
   return (
     <div className="timeline-bar">
       <span className="timeline-label">{editor.selectedRobot}</span>
+      {editor.violations.length > 0 && (
+        <span className="timeline-alert">⚠ {editor.violations.length} 对</span>
+      )}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}

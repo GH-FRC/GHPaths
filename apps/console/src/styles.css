@@ -619,3 +619,9 @@ button:hover {
   background: #ff7b72;
   border-radius: 1px;
 }
+
+.timeline-alert {
+  color: #ff7b72;
+  font-size: 11px;
+  font-weight: 600;
+}
