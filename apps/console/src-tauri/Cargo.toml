@@ -1,0 +1,24 @@
+[package]
+name = "ghpaths-console"
+version = "0.1.0"
+description = "GHPaths 演控台 —— FRC 多机器人表演演控系统"
+edition = "2021"
+
+# Tauri v2 标准模板的 lib 目标（桌面 + 预留 mobile）
+[lib]
+name = "ghpaths_console_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+# ad-hoc 签名保留（ADR-0007 v2 红线：禁止剥离签名配置）
+strip = false
+lto = false
+codegen-units = 1
