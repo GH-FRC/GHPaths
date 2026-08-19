@@ -385,12 +385,20 @@ export class FakeRobot {
       case 'resume':
         this.frozen = false;
         break;
-      case 'arm':
-        this.showPath = this.demoPath();
+      case 'arm': {
+        // arm 可携带编辑器路径（RobotShowPath JSON）;无 path 时用内置演示
+        // 真机同样收此字段（路径部署的轻量版——Phase 2 后续可换文件分发）
+        const cmdPath = (cmd as { path?: unknown }).path;
+        if (isValidRobotPath(cmdPath)) {
+          this.showPath = cmdPath;
+        } else {
+          this.showPath = this.demoPath();
+        }
         this.showStarted = false;
         this.showStopped = false;
         this.fault = null;
         break;
+      }
       case 'start': {
         // 开演前置检查：必须已 arm（不自动装载——迟到的 start 不得让闲置机器人入场）、
         // 且当前位姿就在路径起点附近（就位检查；真机开演前同样要求就位）
@@ -528,4 +536,18 @@ export class FakeRobot {
   private serverUs(): number {
     return Number((process.hrtime.bigint() - this.startNs) / 1000n);
   }
+}
+
+/** RobotShowPath 的结构校验（arm 命令的 path 字段;拒绝坏数据防幽灵机位） */
+function isValidRobotPath(v: unknown): v is import('@ghpaths/field-model').RobotShowPath {
+  if (typeof v !== 'object' || v === null) return false;
+  const p = v as { robot?: unknown; waypoints?: unknown };
+  if (typeof p.robot !== 'number' || !Array.isArray(p.waypoints) || p.waypoints.length < 2) return false;
+  for (const wp of p.waypoints) {
+    if (typeof wp !== 'object' || wp === null) return false;
+    const w = wp as { xM?: unknown; yM?: unknown; headingRad?: unknown; tShowUs?: unknown };
+    if (typeof w.xM !== 'number' || typeof w.yM !== 'number' ||
+        typeof w.headingRad !== 'number' || typeof w.tShowUs !== 'number') return false;
+  }
+  return true;
 }

@@ -43,9 +43,11 @@ export interface RobotHealth {
 /** 演出时钟样本失效时限：超过即视为断时钟，机器人停止（robot/README 约束） */
 export const SHOW_CLOCK_TIMEOUT_MS = 750;
 
-/** 演控 → 机器人的演出命令。设计为幂等、可安全重放（NT4 至少一次语义）。 */
+/** 演控 → 机器人的演出命令。设计为幂等、可安全重放（NT4 至少一次语义）。
+ *  arm.path 携带编辑器编辑的本机路径（RobotShowPath JSON;路径部署的轻量版——
+ *  真机收到后直接装载,无需文件分发。无 path 时机器人用内置/本地默认路径）。 */
 export type ShowCommand =
-  | { kind: 'arm'; showId: string; segmentId: number }
+  | { kind: 'arm'; showId: string; segmentId: number; path?: unknown }
   | { kind: 'start'; showId: string; tStartShowUs: number }
   | { kind: 'hold' }
   | { kind: 'resume' }
