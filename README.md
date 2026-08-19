@@ -8,7 +8,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `apps/console` | 演控台 UI（Vite + React；Tauri 壳推迟到打包阶段） |
+| `apps/console` | 演控台：2D/3D/编辑三视图、间距/漂移/电池遥测、演出录制回放、WPILOG 导出、Tauri 桌面壳+sidecar |
 | `packages/show-protocol` | 演出协议：NT topic 命名、消息类型、时钟语义（单一事实来源） |
 | `packages/field-model` | 舞台/足迹/路径/地理围栏数据模型 |
 | `packages/nt-link` | NT4 接入适配层：按 NT4 规范 4.1 自研薄客户端（浏览器/Node 通用） |
