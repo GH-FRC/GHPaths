@@ -3,6 +3,8 @@ package frc.ghpaths.show;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import frc.ghpaths.Constants;
+import frc.ghpaths.show.ShowCommandReceiver.PathWaypoint;
+import frc.ghpaths.show.ShowCommandReceiver.RobotPath;
 
 /**
  * ShowCoordinator —— 机器人侧演出总协调（每 20ms 由 Robot.robotPeriodic 调用）。
@@ -71,14 +73,25 @@ public final class ShowCoordinator {
         //     cmd.setFault("不在路径起点,需重新就位");
 
         // ---- 轨迹跟随 / 停 ----
-        if (moving && insideFence && drive != null) {
+        if (moving && insideFence) {
             lastMovingTShowS = clock.tShowS();
-            // TODO(Phase 2): targetPose = trajectoryPoseAt(clock.tShowS());
-            //                drive.follow(targetPose);  // 速度/加速度上限在 Drive 层硬限
+            RobotPath path = cmd.armedPath();
+            if (path != null && path.waypoints.size() >= 2) {
+                double[] target = poseOnPath(path, clock.tShowS() * 1e6);
+                if (target != null) {
+                    // Phase 0: 位姿由路径插值直接提供（无真实驱动,台架验证链路）
+                    // Phase 2: 换 drive.follow(target)——速度/加速度上限在 Drive 层硬限
+                    xM = target[0];
+                    yM = target[1];
+                    headingRad = target[2];
+                }
+            }
+            if (drive != null) {
+                drive.follow(xM, yM, headingRad);
+            }
         } else if (drive != null) {
             drive.stop(); // 许可断开对执行器显式停（防御"保持最后指令值"型驱动）
         }
-        // Phase 0: drive=null,位姿由 odometry 更新——这里只做链路验证,位姿不变
 
         // ---- 20ms 上报（字段语义与 fake-robot 逐项对齐）----
         String showState = deriveShowState(showStarted, moving);
@@ -104,6 +117,32 @@ public final class ShowCoordinator {
         return DriverStation.isEnabled()
             && DriverStation.isAutonomous()
             && !DriverStation.isEStopped();
+    }
+
+    /** 分段线性路径插值（与 field-model poseOnPathAt 同语义）。
+     *  返回 [x, y, headingRad];空路径/全超界返回 null。 */
+    private static double[] poseOnPath(RobotPath path, double tShowUs) {
+        java.util.List<PathWaypoint> wps = path.waypoints;
+        if (wps.size() < 2) return null;
+        if (tShowUs <= wps.get(0).tShowUs) {
+            PathWaypoint a = wps.get(0);
+            return new double[]{a.xM, a.yM, a.headingRad};
+        }
+        for (int i = 1; i < wps.size(); i++) {
+            PathWaypoint a = wps.get(i - 1);
+            PathWaypoint b = wps.get(i);
+            if (tShowUs < b.tShowUs) {
+                double span = b.tShowUs - a.tShowUs;
+                double f = span > 0 ? (tShowUs - a.tShowUs) / span : 1;
+                return new double[]{
+                    a.xM + (b.xM - a.xM) * f,
+                    a.yM + (b.yM - a.yM) * f,
+                    Math.atan2(b.yM - a.yM, b.xM - a.xM),
+                };
+            }
+        }
+        PathWaypoint last = wps.get(wps.size() - 1);
+        return new double[]{last.xM, last.yM, last.headingRad};
     }
 
     /** Phase 2 注入:位姿来源（odometry）与驱动接口 */
