@@ -124,6 +124,7 @@ export function App() {
     onPose: (robot, pose) => {
       recorder.pushPose(robot, pose);
       telemetry.onPose(robot, pose);
+      telemetry.onShowClock(pose.tShowUs);
     },
     onHealth: recorder.pushHealth,
   });
@@ -461,6 +462,7 @@ export function App() {
       {!replayActive && !editMode && (
         <section className="charts-row">
           <SpacingChart data={telemetry.spacing} thresholdM={SAFETY_MIN_SEPARATION_M} windowMs={60_000} />
+          <SpacingChart data={telemetry.clockDrift} thresholdM={0} windowMs={60_000} />
         </section>
       )}
 
