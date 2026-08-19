@@ -32,11 +32,12 @@
 
 | 模块 | 位置 | 职责 | 对外契约 |
 |---|---|---|---|
-| 演控台 UI | `apps/console` | 画布/时间轴/一键启停/时钟广播 | — |
+| 演控台 UI | `apps/console` | 2D/3D/编辑三视图、遥测图表、录制回放、WPILOG 导出 | — |
 | NT 接入层 | `packages/nt-link` | 连 6 机器人收 pose/health、发命令/时钟 | `NtLink` 接口（UI 只认它） |
 | 演出协议 | `packages/show-protocol` | topic 命名、消息类型、时钟语义 | 纯类型，单一事实来源 |
 | 场地模型 | `packages/field-model` | 舞台/足迹/路径/围栏 | 纯类型 + 纯函数 |
 | multi-DS | `packages/multi-ds` | DS 协议心跳、使能/急停 | 独立进程 + localhost WS 控制 API（:5899） |
+| Tauri 壳 | `apps/console/src-tauri` | 桌面窗口 + sidecar 进程管理 | GHPaths.app + DMG（ADR-0007） |
 | 模拟机器人 | `sim/fake-robot` | 无硬件回路 | CLI |
 | 机器人代码 | `robot/` | roboRIO WPILib（Phase 0 生成，钉 2026） | show-protocol 的 NT topics |
 
