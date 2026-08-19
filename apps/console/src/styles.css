@@ -411,3 +411,118 @@ button:hover {
   stroke-width: 1;
   opacity: 0.75;
 }
+
+/* ---- 路径编辑器 ---- */
+.edit-mode-btn {
+  border-color: #2a3550;
+  color: #8ab4ff;
+}
+
+.edit-mode-btn.active {
+  background: #1f3a5f;
+}
+
+.editor-layer-dim {
+  opacity: 0.35;
+}
+
+.editor-path-violating {
+  stroke: #ff7b72 !important;
+  stroke-dasharray: none;
+  opacity: 0.9;
+}
+
+.editor-wp {
+  fill: #161b22;
+  stroke-width: 0.06;
+  cursor: grab;
+}
+
+.editor-wp-bg {
+  fill: #3d444d;
+  opacity: 0.5;
+}
+
+.editor-wp-terminal {
+  fill: none;
+  stroke: #9aa4b2;
+  stroke-width: 0.05;
+}
+
+.editor-wp-selected {
+  stroke: #e8e8ea;
+  stroke-width: 0.09;
+}
+
+.editor-wp-selected-ring {
+  fill: none;
+  stroke: #79c0ff;
+  stroke-width: 0.04;
+  opacity: 0.7;
+}
+
+.robot-wp-1 { stroke: #ff7b72; }
+.robot-wp-2 { stroke: #ffa657; }
+.robot-wp-3 { stroke: #f2cc60; }
+.robot-wp-4 { stroke: #7ee787; }
+.robot-wp-5 { stroke: #79c0ff; }
+.robot-wp-6 { stroke: #d2a8ff; }
+
+.editor-hit-line {
+  stroke: transparent;
+  stroke-width: 0.3;
+}
+
+.editor-insert-hint {
+  fill: #79c0ff33;
+  stroke: #79c0ff;
+  stroke-width: 0.03;
+  cursor: copy;
+}
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.editor-hint {
+  color: #9aa4b2;
+  font-size: 12px;
+}
+
+.editor-violation {
+  color: #ff7b72;
+  font-weight: 600;
+}
+
+.editor-ok {
+  color: #7ee787;
+}
+
+.editor-msg {
+  color: #8ab4ff;
+}
+
+.editor-robot-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.editor-robot-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-robot-tabs button.active {
+  border-color: #2f81f7;
+}
+
+.editor-banner {
+  fill: #ffa657;
+  font-size: 0.4px;
+}

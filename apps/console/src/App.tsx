@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createDemoShow, DEFAULT_FOOTPRINT, DEFAULT_STAGE, DEMO_SHOW_ID, stageGeofence } from '@ghpaths/field-model';
 import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
@@ -9,6 +9,8 @@ import { useReplay } from './useReplay';
 import { useBackends } from './useBackends';
 import { jsonlToWpilog } from './wpilog-export';
 import { useTelemetry } from './useTelemetry';
+import { usePathEditor } from './usePathEditor';
+import { EditorCanvas } from './EditorCanvas';
 import { SpacingChart } from './SpacingChart';
 import { Sparkline } from './Sparkline';
 
@@ -111,6 +113,10 @@ export function App() {
   const backends = useBackends();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const telemetry = useTelemetry();
+  const editor = usePathEditor();
+  const [editMode, setEditMode] = useState(false);
+  const editorFileRef = useRef<HTMLInputElement | null>(null);
+  const [editorMsg, setEditorMsg] = useState<string | null>(null);
   const { robots, sendCommand, publishClock } = useRobots({
     onPose: (robot, pose) => {
       recorder.pushPose(robot, pose);
@@ -185,6 +191,16 @@ export function App() {
         )}
         {recorder.recording && <span className="badge rec">● 录制 {recorder.lineCount}</span>}
         <div className="spacer" />
+        {!replayActive && (
+          <button
+            className={editMode ? 'edit-mode-btn active' : 'edit-mode-btn'}
+            disabled={show.phase !== 'idle'}
+            title={show.phase !== 'idle' ? '演出进行中不可编辑' : '多机路径编辑器'}
+            onClick={() => { setEditMode(!editMode); setEditorMsg(null); }}
+          >
+            {editMode ? '退出编辑' : '路径编辑'}
+          </button>
+        )}
         {replayActive ? (
           <>
             <button onClick={() => replay.setPlaying(!replay.playing)}>{replay.playing ? '暂停回放' : '播放回放'}</button>
@@ -357,7 +373,57 @@ export function App() {
         ) : null}
       </section>
 
-      {!replayActive && (
+      {editMode && !replayActive ? (
+        <section className="stage-wrap">
+          <EditorCanvas editor={editor} running={show.phase !== 'idle'} />
+          <div className="editor-bar">
+            <span className="editor-hint">
+              点击航点选中 · 拖动移动 · 线上空处悬停显示 + 插入 · Delete 删除中间点（端点固定）
+            </span>
+            <div className="spacer" />
+            {editor.violations.length > 0 ? (
+              <span className="editor-violation">
+                碰撞风险 {editor.violations.length} 对（最窄 {Math.min(...editor.violations.map(v => v.minSepM)).toFixed(2)}m &lt; 1.05m）
+              </span>
+            ) : (
+              <span className="editor-ok">无碰撞风险 ✓</span>
+            )}
+            <button onClick={() => editorFileRef.current?.click()}>载入 JSON</button>
+            <button onClick={() => { const j = editor.exportJson(); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([j], { type: 'application/json' })); a.download = 'show-paths.json'; a.click(); }}>
+              导出 JSON
+            </button>
+            <button onClick={() => editor.loadDemo()}>恢复演示</button>
+            <input
+              ref={editorFileRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                const err = editor.loadJson(await f.text());
+                setEditorMsg(err ?? '已载入');
+                e.target.value = '';
+              }}
+            />
+            {editorMsg && <span className="editor-msg">{editorMsg}</span>}
+          </div>
+          <div className="editor-robot-tabs">
+            {editor.show.paths.map((p, i) => (
+              <button
+                key={p.robot}
+                className={editor.selectedRobot === p.robot ? 'active' : ''}
+                onClick={() => { editor.selectRobot(p.robot); editor.selectWaypoint(null); }}
+              >
+                <span className={`dot robot-dot-${i + 1}`} data-on={editor.selectedRobot === p.robot} />
+                {p.robot}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!replayActive && !editMode && (
         <section className="charts-row">
           <SpacingChart data={telemetry.spacing} thresholdM={1.05} windowMs={60_000} />
         </section>
