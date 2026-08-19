@@ -36,6 +36,8 @@ export interface PathEditor extends EditorState {
   /** 在段 t∈[0,1) 处插入航点（时间线性内插） */
   insertWaypoint: (afterIndex: number) => void;
   deleteWaypoint: (index: number) => void;
+  /** 时间轴编辑：直接设置航点的 tShowUs（调用方保证单调性钳制） */
+  updateWaypointTime: (robot: RobotId, index: number, tShowUs: number) => void;
   loadDemo: () => void;
   exportJson: () => string;
   loadJson: (json: string) => string | null;
@@ -103,6 +105,15 @@ export function usePathEditor(): PathEditor {
     [selectedRobot, updatePath],
   );
 
+  const updateWaypointTime = useCallback(
+    (robot: RobotId, index: number, tShowUs: number): void => {
+      updatePath(robot, (wps) =>
+        wps.map((wp, i) => (i === index ? { ...wp, tShowUs } : wp)),
+      );
+    },
+    [updatePath],
+  );
+
   const deleteWaypoint = useCallback(
     (index: number): void => {
       updatePath(selectedRobot, (wps) =>
@@ -147,6 +158,7 @@ export function usePathEditor(): PathEditor {
     moveWaypoint,
     insertWaypoint,
     deleteWaypoint,
+    updateWaypointTime,
     loadDemo,
     exportJson,
     loadJson,

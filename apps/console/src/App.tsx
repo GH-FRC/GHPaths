@@ -11,6 +11,7 @@ import { jsonlToWpilog } from './wpilog-export';
 import { useTelemetry } from './useTelemetry';
 import { usePathEditor } from './usePathEditor';
 import { EditorCanvas } from './EditorCanvas';
+import { TimelineBar } from './TimelineBar';
 import { Stage3D, type Robot3DData } from './Stage3D';
 import { SpacingChart } from './SpacingChart';
 import { Sparkline } from './Sparkline';
@@ -409,6 +410,7 @@ export function App() {
       {editMode && !replayActive ? (
         <section className="stage-wrap">
           <EditorCanvas editor={editor} running={show.phase !== 'idle'} />
+          <TimelineBar editor={editor} />
           <div className="editor-bar">
             <span className="editor-hint">
               点击航点选中 · 拖动移动 · 线上空处悬停显示 + 插入 · Delete 删除中间点（端点固定）

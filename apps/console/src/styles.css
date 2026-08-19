@@ -553,3 +553,51 @@ button:hover {
 
 .batt-warn { color: #ffa657; }
 .batt-critical { color: #ff7b72; font-weight: 700; }
+
+.timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: #161b22;
+  border: 1px solid #232932;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.timeline-label {
+  color: #8ab4ff;
+  font-weight: 600;
+  min-width: 38px;
+}
+
+.timeline-svg {
+  flex: 1;
+  height: 36px;
+  touch-action: none;
+}
+
+.timeline-track {
+  stroke: #3d444d;
+  stroke-width: 0.5;
+}
+
+.timeline-wp {
+  fill: #79c0ff;
+}
+
+.timeline-wp-selected {
+  fill: #e8e8ea;
+  stroke: #79c0ff;
+  stroke-width: 0.3;
+}
+
+.timeline-wp-terminal {
+  fill: #3d444d;
+}
+
+.timeline-tick {
+  fill: #9aa4b2;
+  font-size: 5px;
+}
