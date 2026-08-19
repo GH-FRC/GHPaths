@@ -380,6 +380,20 @@ export function App() {
               onChange={(e) => replay.seek(Number(e.target.value))}
               style={{ width: '60%' }}
             />
+            {/* 间距超阈值时段（红色标记条,叠加在进度条上） */}
+            <span className="replay-breaches">
+              {replayData.stats.separationBreaches.map(([start, end], i) => (
+                <span
+                  key={i}
+                  className="breach-mark"
+                  style={{
+                    left: `${(start * 1000 / replayData.durationMs) * 100}%`,
+                    width: `${Math.max(0.5, ((end - start) * 1000 / replayData.durationMs) * 100)}%`,
+                  }}
+                  title={`${start.toFixed(1)}s ~ ${end.toFixed(1)}s 间距超阈值`}
+                />
+              ))}
+            </span>
             <span className="replay-events">
               {replayData.events.map((ev, i) => (
                 <span key={i} className="event-mark" title={ev.event}>
