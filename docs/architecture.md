@@ -40,6 +40,8 @@
 | 模拟机器人 | `sim/fake-robot` | 无硬件回路 | CLI |
 | 机器人代码 | `robot/` | roboRIO WPILib（Phase 0 生成，钉 2026） | show-protocol 的 NT topics |
 
+> 规划中（ADR-0006，Phase 2 收尾~Phase 3）：遥测图表与 3D 视图（apps/console 内，three.js + .glb；机构姿态 `componentPoses` 约定入 show-protocol）、WPILOG 导出与 AdvantageScope 三条备胎路径（本地 NT4 聚合转发 / "在 AS 中打开" / 单机直连）。
+
 ## 端口一览
 
 | 端口 | 协议 | 用途 |

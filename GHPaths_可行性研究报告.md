@@ -1,7 +1,7 @@
 # GHPaths 可行性研究报告
 ## 面向机器人表演的 FRC 多机器人路径规划与监控系统
 
-> 研究日期：2026-08-18（v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
+> 研究日期：2026-08-18（**v1.3（2026-08-19）：新增第八节"可视化与遥测子系统"，决策记录见 ADR-0006**；v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
 > 研究范围：技术可行性、网络架构、使能控制、现有工具复用性、替代方案、风险与路线图
 
 ---
@@ -18,6 +18,7 @@
 2. **PathPlanner / Choreo 均无多机器人支持**（经调研确认），多机规划界面必须自研——但这正是这个项目的价值所在，且两者的轨迹库（均为宽松开源许可证）可以在机器人端复用。
 3. **FRC 控制系统换代已启动**：2027 起启用 Systemcore 新控制体系；新 DS（已 alpha，跨平台含 macOS）只支持 Systemcore、不兼容 roboRIO，WPILib 也已于 2026-05 冻结 roboRIO 侧维护。对不上场比赛的表演项目反而是利好——锁定 2026 冻结栈后，DS 协议与机器人软件栈不再逐年漂移（详见 5.4 节）。
 4. **Mac 作为演控主力机完全可行**：日常开发、排练、演出全流程都可以只靠 Mac 完成；需要借道 Windows 的一次性环节仅剩 roboRIO 烧录，以及仅 OpenMesh 旧无线电才涉及的刷写（现役 VH-109 无线电全程 Mac 网页/Docker 完成）。详见第七节的逐项对照。
+5. **可视化与遥测子系统（v1.3）**：自研 2D/3D 多机视图（含炮塔等机构姿态）与遥测图表为主，AdvantageScope 三条路径作备胎；录制回放以既有 JSONL 为起点、增加 WPILOG 互通格式，使自研视图与 AdvantageScope 共享同一份数据与日志。见第八节。
 
 ---
 
@@ -29,6 +30,7 @@
 | 2 | 运行时实时看到每台机器的位置与路径 | 全自动驾驶，一键启动 |
 | 3 | 一台电脑同时连接 6 台机器人 | 优先 FRC 原生控制体系，尽量少改动 |
 | 4 | 演控电脑偏好 **Mac**（2026-08-18 补充） | 已评估各环节 macOS 兼容性，见第七节 |
+| 5 | 内建可视化：多机 2D/3D 视图（含机构姿态，如炮塔指向）、遥测图表（炮塔电压/速度等）、全程录制回放；同时保留调起真正 AdvantageScope 的能力作备选（2026-08-19 补充） | 设计见第八节与 ADR-0006 |
 
 附加约束：开发维护主要依靠 AI 工具（Claude、GLM、DeepSeek、Codex），技术选型需考虑 AI 友好性。
 
@@ -139,7 +141,7 @@ roboRIO 的安全模型：**电机输出被 FPGA 门控，只有持续收到 Dri
 
 WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，仓库 wpilibsuite/FirstDriverStation-Public，跨平台含 macOS arm64），配合新控制体系 Systemcore。**关键事实（核查确认）：新 DS 只支持 Systemcore，完全不兼容 roboRIO**——roboRIO 车队不是"不被迫迁移"，而是根本用不上它，将继续使用现有 NI DS（官方口径：2026 版之后预计不再更新）。同时 WPILib 已于 **2026-05-02 停止 roboRIO 侧维护**（2027 alpha 不兼容 roboRIO）；FIRST 官宣 2026-27 赛季起启用 Systemcore，roboRIO 的比赛合法性到 2026 赛季为止（社区信源一致，2027 手册待发布最终确认）。对本项目的含义：
 
-- 表演不上场比赛：**锁定 2026 冻结镜像 + 2026 WPILib 栈**，DS 协议与机器人软件栈从此不再逐年漂移——第九节"DS 协议逐年微调"风险据此降级，multi-DS 一次做对可长期稳定服役；
+- 表演不上场比赛：**锁定 2026 冻结镜像 + 2026 WPILib 栈**，DS 协议与机器人软件栈从此不再逐年漂移——第十节"DS 协议逐年微调"风险据此降级，multi-DS 一次做对可长期稳定服役；
 - 冻结的 2026 栈用于练习与展示"无限期可用"（WPILib 维护者口径），现在投入不会作废；
 - 若未来采购 Systemcore 新机器人：新 DS 为闭源、架构不同，multi-DS 需要适配甚至重做；
 - 建议：multi-DS 组件做成独立模块（独立进程或独立包），与协议细节解耦，未来好替换；机器人端 vendordep 一律钉在 2026 版，升级镜像属于"主动决策 + 回归测试"，不随赛季自动跟进。
@@ -240,7 +242,56 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 
 ---
 
-## 八、替代与降级方案（若 FRC 原生路线受阻）
+## 八、可视化与遥测子系统（2026-08-19 新增，决策记录 ADR-0006）
+
+### 8.1 需求与定位
+
+用户需求：舞台上直观看到每台车的 2D 与 3D 位置，以及炮塔（shooter）等机构的电压、速度等遥测数据。确认的策略为**双轨制**：
+
+- **自研视图为主**：2D/3D 多机实时视图 + 遥测图表内建于演控台（apps/console），体验统一、多机叠加是刚需；
+- **AdvantageScope 为备胎**：自研视图出 bug 时，能随时调起真正的 AdvantageScope 顶上——通过共用同一份 topic 数据（实时）与同一份日志（离线），备胎路径近乎零成本。
+
+### 8.2 机器人端遥测约定（show-protocol 扩展）
+
+数据源只有一份：机器人端按 `packages/show-protocol` 约定发布 topic，GHPaths 与 AdvantageScope 都订阅它。需在现有约定（Pose、health、show 命令、演出时钟）之上扩展：
+
+| topic（示意） | 类型 | 内容 | 用途 |
+|---|---|---|---|
+| `<机器人>/pose` | Pose2d | 实时位姿（已有） | 2D/3D 视图、回放 |
+| `<机器人>/componentPoses` | Pose3d[] | 机构组件姿态数组：底座、炮塔偏航、发射俯仰等，与 3D 模型组件一一对应 | 3D 机构细节渲染（GHPaths 与 AS 通用约定） |
+| `<机器人>/telemetry/turretVoltage` 等 | number | 炮塔电压、速度（含目标值/实测值）、电流、温度等 | 遥测图表 |
+
+**关键设计：`componentPoses` 采用 AdvantageScope Custom Assets 的业界约定**（.glb 模型组件 ↔ Pose3d 数组一一对应）。这意味着同一份数据、同一份 3D 模型资产在自研视图和 AdvantageScope 里都能渲染出会动的炮塔——备胎不是另做一套，而是同一协议的第二个消费者。
+
+### 8.3 录制与回放：JSONL 起步，WPILOG 互通
+
+- **现状**：Phase 2 已落地 JSONL 录制/回放（useRecorder/useReplay，双时钟：录制钟 + 演出时钟）——继续作为 GHPaths 原生格式；
+- **增量（打通 AdvantageScope）**：增加 **WPILOG 导出**。两条路径：浏览器阶段做 JSONL→WPILOG 转换器（纯前端可行，导出即得）；Tauri 打包、本地落盘后录制器可直接写 WPILOG。格式选择 WPILOG 的理由：WPILib 官方开源格式、AdvantageScope 直接打开；**AS 支持同时打开多份日志并自动对齐时间戳**——多机对比分析开箱即得；读取有现成 TS 库（npm `wpilog-parser`），写入器自研（格式公开、结构简单，一天级工作量）；
+- **回放复用**：回放模式只是"时间轴作为数据源"，驱动与实时模式完全相同的 2D/3D/图表组件。
+
+### 8.4 自研视图（apps/console 内实现）
+
+- **2D**：既有画布（多机叠加、轨迹尾巴、路径显示）已随 Phase 2 落地，本节不重复；
+- **3D**：three.js（或 react-three-fiber）+ glTF（.glb）模型；每台车一个简化关节模型，组件命名与 `componentPoses` 对应；相机预设（俯瞰全场 / 侧幕机位 / 单机跟踪）；舞台背景模型 + 地理围栏可视化；
+- **图表**：示波器式实时曲线（炮塔电压/速度等，可钉选多通道、显示目标 vs 实测），选型走轻量高性能路线（uPlot 量级）或自绘 canvas；
+- **模型资产工作流**：CAD → Blender 简化（控面数）→ .glb。同一份资产放入 AdvantageScope 的 Custom Assets 目录，AS 的 3D 视图即可渲染同样会动的车——一处制作，两边受益。
+
+### 8.5 AdvantageScope 备胎路径（三条）
+
+1. **实时全场**：GHPaths 开启"聚合转发"——把 6 机数据以机器人前缀转发到一个本地 NT4 服务器（nt-link 层加薄转发，或录制器同源分叉）；AdvantageScope 以 NT4 客户端连演控机地址（Robot Address 填本机 IP）→ **一个 AS 实例同时看到全部 6 台**。注意选 Low Bandwidth 模式（按需拉取，6 机数据量友好）；
+2. **离线复盘**：演出后导出 WPILOG → 演控台"在 AdvantageScope 中打开"按钮（macOS 文件关联 / 拖拽到 AS 图标均可）→ 深度分析（曲线、多文件对比、导出 CSV）；
+3. **单机直连**：AS 直连单台机器人（Robot Address = 10.TE.AM.2）现场排障。
+
+- 许可证：AdvantageScope（AdvantageKit 仓库）为 BSD-3，自由使用、无再分发障碍；
+- 原则：只依赖 AS 的公开接口（NT4 客户端、WPILOG 格式、Custom Assets），不碰其内部实现——AS 自身升级不影响本系统。
+
+### 8.6 优先级与工作量
+
+优先级排序（演出价值 / 成本比）：遥测图表 + WPILOG 导出（复盘刚需，成本低）→ 3D 全场监控 → 3D 机构姿态 + 模型资产管线（美术工作大于编码工作，低模起步可先用几何体占位）。路线图挂接：Phase 2 收尾候选增加"WPILOG 导出 + AS 跳转按钮 + 遥测图表"；Phase 3 增加"3D 视图与模型管线"。新增风险与缓解见第十节。
+
+---
+
+## 九、替代与降级方案（若 FRC 原生路线受阻）
 
 | 场景 | 替代方案 | 代价 |
 |------|---------|------|
@@ -252,7 +303,7 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 
 ---
 
-## 九、风险清单
+## 十、风险清单
 
 | 风险 | 等级 | 缓解 |
 |------|------|------|
@@ -264,10 +315,12 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 | 2027 控制系统换代冲击 | 低（冻结栈不受影响） | multi-DS 独立模块化解耦；机器人栈钉在 2026；新采购机器人时再评估 Systemcore 路线 |
 | macOS 更新重置本地网络权限 / 更改网络行为 | 低 | 演出周冻结系统更新；演出前检查清单含"本地网络"授权项；GHPaths 启动自检 |
 | 无线电刷写依赖 Windows 环境（仅 OpenMesh OM5P 机型；VH-109 走网页 + Docker 全程 Mac） | 低 | Phase 0 盘点无线电型号；仅 OM5P 才需常备 UTM 虚拟机镜像或记录可借用的 Windows 机器 |
+| 3D 模型资产制作工作量（美术大于编码） | 中 | 低模/几何体占位起步；CAD→Blender→.glb 管线沉淀一次；资产与 AdvantageScope Custom Assets 共用（一处制作两边受益） |
+| AdvantageScope 版本演进影响备胎路径 | 低 | 只依赖其公开接口（NT4 客户端、WPILOG 格式、Custom Assets），不碰内部实现 |
 
 ---
 
-## 十、分阶段路线图
+## 十一、分阶段路线图
 
 **Phase 0 —— 单机链路验证（约 1~2 周）**
 **前置（半天）——硬件盘点**：确认每台机器人的无线电型号（OpenMesh OM5P / VH-109）与 roboRIO 镜像版本，据此确定组网与刷写路径（见 7.2）。然后：一台机器人按对应流程入网（OM5P 需临时借道 Windows；VH-109 全程 Mac）+ 场地路由器 + 演控 Mac。验证：NT4 读写、DS 协议使能/失效/急停（对照 OpenDS 运行抓包；协议笔记见仓库 docs/protocol/）、macOS 本地网络授权与多 IP 配置流程。这是整个项目风险最高的未知数，最先消灭。
@@ -276,10 +329,10 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 两台机器人同网。验证：6 IP 网卡配置法、双逻辑 DS 并行使能、同步时钟精度、同时启停。
 
 **Phase 2 —— 演控 MVP（约 1~2 月）**
-GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、基本日志。此阶段路径仍用 PathPlanner 等现成工具制作、手动部署——先让"演出能力"成立。
+GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、基本日志。此阶段路径仍用 PathPlanner 等现成工具制作、手动部署——先让"演出能力"成立。v1.3 增补收尾候选：遥测图表（炮塔电压/速度曲线）、WPILOG 导出与"在 AdvantageScope 中打开"按钮（见第八节）。
 
 **Phase 3 —— 多机路径编辑器（约 2~3 月）**
-多图层画布、统一时间轴、碰撞检测、仿真预演、一键部署到各机。
+多图层画布、统一时间轴、碰撞检测、仿真预演、一键部署到各机。v1.3 增补：3D 场景视图（全场监控 + 机构姿态 componentPoses）与模型资产管线。
 
 **Phase 4 —— 全编制联排（按演出排期）**
 6 台全编制、安全体系完备、现场压力测试、带妆联排。
@@ -288,10 +341,11 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 
 ---
 
-## 十一、结论
+## 十二、结论
 
 - **能不能做？** 能。网络与监控是成熟路径，使能控制有明确的攻坚方案与兜底。
 - **Mac 能不能当主力？** 能，且很合适：除"roboRIO 烧录"与（仅 OM5P 机型才有的）"无线电刷写"等一次性环节外，全流程 Mac 原生完成；自研部分（TS/React/Tauri + NT4 + multi-DS）本就跨平台，Mac 与 Windows 只是部署选项之争，不影响架构。
+- **可视化与遥测（v1.3）怎么做？** 自研 2D/3D 与图表为主、AdvantageScope 备胎为辅：机器人端一份 topic 同时喂两边，机构姿态沿用 AS 的 Pose3d 组件约定，录制增加 WPILOG 互通——自研视图出 bug 时备胎随时顶上，数据与日志全程一套。
 - **要不要改机器人硬件？** 不用。唯一的"改动"是无线电配置刷写（软件性质，可逆）。
 - **最大的坑在哪？** DS 协议实现（有参考、可验证、有兜底）与舞台安全体系（靠设计与流程）。
 - **最应该立刻做什么？** Phase 0：找一台机器人把"桥接模式 + 自研 DS 使能"链路打通。一天之内就能知道最难的那块骨头有多硬。
@@ -315,6 +369,9 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 - [Choreo — SleipnirGroup GitHub（BSD）](https://github.com/SleipnirGroup/Choreo) ／ [choreo.autos](https://choreo.autos/)
 - [Choreo vs PathPlanner — Chief Delphi](https://www.chiefdelphi.com/t/choreo-vs-pathplanner/467373)
 - [AdvantageScope Live Sources 文档](https://docs.advantagescope.org/overview/live-sources/) ／ [3D Field](https://docs.advantagescope.org/tab-reference/3d-field/)
+- [AdvantageScope Log Files（格式支持与多文件时间对齐）](https://docs.advantagescope.org/overview/log-files/) ／ [Custom Assets（.glb 模型与 3D 组件姿态约定）](https://docs.advantagescope.org/more-features/custom-assets/)
+- [wpilog-parser（TS 读取 WPILOG）— npm](https://www.npmjs.com/package/wpilog-parser)
+- [Using CAD in AdvantageScope — YETI Wiki（CAD→glb 模型简化实践）](https://wiki.yetirobotics.org/books/robot-software/page/using-cad-in-advantagescope)
 - [NetworkTablesClients（wpilibsuite；实况：仅含休眠的 .NET NT3 客户端，官方无 JS/TS 实现）— GitHub](https://github.com/wpilibsuite/NetworkTablesClients) ／ [ntcore-ts（社区 TS 客户端，本项目采用）](https://github.com/cjlawson02/ntcore-ts)
 - [The 2027 FIRST Driver Station — WPILib Blog（2026-04-24）](https://wp.wpi.edu/wpilib/2026/04/24/the-2027-first-driver-station/)
 - [FRC Radio Configuration Utility 下载 — FIRST TeamForge](https://usfirst.collab.net/sf/frs/do/listReleases/projects.wpilib/frs.frc_radio_configuration_utility)
@@ -330,4 +387,4 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 
 ---
 
-*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
+*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）；2026-08-19 增补第八节可视化与遥测子系统（v1.3，ADR-0006）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
