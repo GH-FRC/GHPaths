@@ -89,6 +89,24 @@ export const DEMO_SHOW_ID = 'demo-wave';
 /** 全队安全最小间距（米）——演示演出的构建期断言阈值与编辑器/图表的碰撞预警共用 */
 export const SAFETY_MIN_SEPARATION_M = 1.05;
 
+/** 位姿快照的全对最小间距（米）——实时遥测与回放统计共用。
+ *  positions: 机器人 → 世界坐标 {x, y};返回最小中心距,单机/空返回 ∞。 */
+export function minSeparationFromPositions(
+  positions: Map<number, { x: number; y: number }>,
+): number {
+  const teams = [...positions.keys()];
+  if (teams.length < 2) return Number.POSITIVE_INFINITY;
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const a = positions.get(teams[i]!)!;
+      const b = positions.get(teams[j]!)!;
+      min = Math.min(min, Math.hypot(a.x - b.x, a.y - b.y));
+    }
+  }
+  return min;
+}
+
 export function createDemoShow(teams: number[]): Show {
   const durationS = 60;
   const laneSpacing = 1.1;

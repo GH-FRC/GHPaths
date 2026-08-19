@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RobotId, ShowLogRecord } from '@ghpaths/show-protocol';
+import { minSeparationFromPositions } from '@ghpaths/field-model';
 
 export interface ReplayPose {
   tRecMs: number;
@@ -118,20 +119,12 @@ function parseLog(text: string): { data: ReplayData | null; error: string | null
       const p = poseAt(poses.get(team) ?? [], t);
       if (p) positions.set(team, { x: p.xM, y: p.yM });
     }
-    const teams = [...positions.keys()];
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        const d = Math.hypot(
-          positions.get(teams[i]!)!.x - positions.get(teams[j]!)!.x,
-          positions.get(teams[i]!)!.y - positions.get(teams[j]!)!.y,
-        );
-        if (d < minSep) { minSep = d; minSepAt = t; }
-        if (d < 1.05 && !inBreach) { inBreach = true; breaches.push([t / 1000, t / 1000]); }
-        else if (d >= 1.05 && inBreach) {
-          inBreach = false;
-          breaches[breaches.length - 1]![1] = t / 1000;
-        }
-      }
+    const d = minSeparationFromPositions(positions);
+    if (d < minSep) { minSep = d; minSepAt = t; }
+    if (d < 1.05 && !inBreach) { inBreach = true; breaches.push([t / 1000, t / 1000]); }
+    else if (d >= 1.05 && inBreach) {
+      inBreach = false;
+      breaches[breaches.length - 1]![1] = t / 1000;
     }
   }
   void snapshot;
