@@ -1,7 +1,7 @@
 # GHPaths 可行性研究报告
 ## 面向机器人表演的 FRC 多机器人路径规划与监控系统
 
-> 研究日期：2026-08-18（**v1.5（2026-08-19）：§7.5 依用户决策定稿为免费分发方案（浏览器下载为主 + 终端/Homebrew 并行 + 应用内更新），ADR-0007 同日修订为 v2**；**v1.4（2026-08-19）：新增 §7.5"分发与安装体验"，决策记录见 ADR-0007**；v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
+> 研究日期：2026-08-18（**v1.6（2026-08-19）：新增 §8.7 语言设置（简/繁/英）与 §8.8 场地地图（赛季内置 + 用户导入含 AprilTag），决策记录见 ADR-0008**；**v1.5（2026-08-19）：§7.5 依用户决策定稿为免费分发方案（浏览器下载为主 + 终端/Homebrew 并行 + 应用内更新），ADR-0007 同日修订为 v2**；**v1.4（2026-08-19）：新增 §7.5"分发与安装体验"，决策记录见 ADR-0007**；v1.2 修订：依据同日独立核查修正 roboRIO 烧录、NT 客户端选型、无线电换代、2027 时间线等论断，核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》；v1.1 修订：新增第七节"Mac 与 Windows 兼容性分析"）
 > 研究范围：技术可行性、网络架构、使能控制、现有工具复用性、替代方案、风险与路线图
 
 ---
@@ -20,6 +20,7 @@
 4. **Mac 作为演控主力机完全可行**：日常开发、排练、演出全流程都可以只靠 Mac 完成；需要借道 Windows 的一次性环节仅剩 roboRIO 烧录，以及仅 OpenMesh 旧无线电才涉及的刷写（现役 VH-109 无线电全程 Mac 网页/Docker 完成）。详见第七节的逐项对照。
 5. **可视化与遥测子系统（v1.3）**：自研 2D/3D 多机视图（含炮塔等机构姿态）与遥测图表为主，AdvantageScope 三条路径作备胎；录制回放以既有 JSONL 为起点、增加 WPILOG 互通格式，使自研视图与 AdvantageScope 共享同一份数据与日志。见第八节。
 6. **分发与安装体验（v1.4 调研、v1.5 定稿：完全免费）**：不购开发者账号、不走学校认证；主渠道 = GitHub Releases 浏览器下载 dmg（每台 Mac 首装一次性"仍要打开"仪式约 30 秒，之后永久正常），并行渠道 = 终端一行安装 / Homebrew（零弹窗），升级走应用内更新（免版本级再批准）。Releases 页固定含安装包与三种安装教程。零警告安装（AdvantageScope 档）需 $99/年——已决策放弃。见 §7.5 与 ADR-0007。
+7. **语言与场地地图（v1.6）**：设置（Preferences）提供 简体中文 / 繁體中文 / English 三语言切换（默认随系统）；场地地图每年赛季内置，同时支持用户导入（含 AprilTag 布局，兼容 WPILib/PhotonVision 官方格式，2D/3D 全局生效）。见 §8.7、§8.8 与 ADR-0008。
 
 ---
 
@@ -33,6 +34,8 @@
 | 4 | 演控电脑偏好 **Mac**（2026-08-18 补充） | 已评估各环节 macOS 兼容性，见第七节 |
 | 5 | 内建可视化：多机 2D/3D 视图（含机构姿态，如炮塔指向）、遥测图表（炮塔电压/速度等）、全程录制回放；同时保留调起真正 AdvantageScope 的能力作备选（2026-08-19 补充） | 设计见第八节与 ADR-0006 |
 | 6 | 安装体验：双击 .dmg 即装即用，不出"危害性文件"警告，不去终端、尽量不去设置（2026-08-19 补充）；同日定稿：**完全免费**，浏览器下载为主渠道，终端/Homebrew 并行保留，releases 页含安装包与安装教程 | 免费上限 = 每台 Mac 首装一次"仍要打开"+ 密码，之后（含升级）永久无感；见 §7.5 与 ADR-0007（v2） |
+| 7 | 语言设置：苹果端 Preferences 内提供 简体中文 / 繁体中文 / 英文 切换（2026-08-19 补充） | 见 §8.7 与 ADR-0008；默认随系统语言，可手动覆盖 |
+| 8 | 场地地图：每个赛季的地图提前内置；支持用户自己导入地图，AprilTag 等元素一并导入（2026-08-19 补充） | 见 §8.8 与 ADR-0008；导入格式兼容 AdvantageScope 生态 / WPILib AprilTag 官方布局 |
 
 附加约束：开发维护主要依靠 AI 工具（Claude、GLM、DeepSeek、Codex），技术选型需考虑 AI 友好性。
 
@@ -325,6 +328,22 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 
 优先级排序（演出价值 / 成本比）：遥测图表 + WPILOG 导出（复盘刚需，成本低）→ 3D 全场监控 → 3D 机构姿态 + 模型资产管线（美术工作大于编码工作，低模起步可先用几何体占位）。路线图挂接：Phase 2 收尾候选增加"WPILOG 导出 + AS 跳转按钮 + 遥测图表"；Phase 3 增加"3D 视图与模型管线"。新增风险与缓解见第十节。
 
+### 8.7 语言设置：简体中文 / 繁體中文 / English（v1.6 新增）
+
+- **入口与行为**：macOS 应用菜单的 Preferences（⌘,）中提供语言选项；默认跟随系统语言，手动选择后覆盖并在下次启动保持；切换即时生效（无需重启）。
+- **实现**：react-i18next（或同级方案）+ 三份语言包（`zh-Hans` / `zh-Hant` / `en`）；**繁体起步策略 = OpenCC 从简体自动转换 + 机器人术语表人工校对**（控制"伺服/舵机""底盘/底盤"等两岸术语差异），后续按维护成本决定是否双份维护。
+- **覆盖范围**：演控台全部 UI 文案（含首启向导、安装引导、错误消息、状态提示）；**数据本身不翻译**（topic 名、日志字段、工程日志是数据不是界面）。
+- **持久化**：浏览器开发期 localStorage，打包后走 Tauri store；语言偏好随演出配置文件保存（不同演出/操作员可各记各的）。
+- **时机**：i18n 机制骨架与 Preferences 窗口 Phase 2 收尾就位，**全量三语覆盖放 Phase 3 UI 文案冻结时**——太早做会随界面迭代反复重翻。
+
+### 8.8 场地地图：赛季内置 + 用户导入（含 AprilTag）（v1.6 新增）
+
+- **(a) 赛季场地内置**：每个 FRC 赛季的场地随版本内置（2D 场地图 + 尺寸标定 + AprilTag 布局，3D 模型可选），无需联网下载（AS 的做法是联网后台下载，我们演出环境不保证联网，直接打进安装包）。数据来源与 AS 同源生态：WPILib 官方每赛季发布的 AprilTagFieldLayout JSON（PhotonVision 同格式）+ 场地图片/模型素材（AS 的 AdvantageScopeAssets 仓库为 BSD-3，可作参照与素材来源）。**演出舞台也是"地图"**：内置默认舞台模板，用户可导入自己的舞台平面图当场地用。
+- **(b) 用户导入**：场地包 = 场地图片（PNG）+ 像素角点标定（把图片角点映射到世界坐标米制尺寸，AdvantageScope 同款思路）+ 场地尺寸 + **可选 AprilTag 布局 JSON（直接兼容 WPILib / PhotonVision 官方格式）** + 可选 3D 模型（.glb）。导入后在 2D/3D 视图、路径编辑器、地理围栏全局生效。精确 JSON 字段以 AS Custom Assets 官方文档与 AdvantageScopeAssets 实物为准，实现时对齐（本报告不抄录未核验的字段名）。
+- **数据模型**：`packages/field-model` 新增 `FieldMap` 类型（image / corners / sizeM / tags / geofence）；show-protocol 不动——场地是演控端概念，机器人只认世界坐标。
+- **AprilTag 的双重用途**：① 显示（2D 标注 + 3D 立体渲染）；② 定位配置单一事实来源——演控端导入一份布局，既用于渲染，也可导出给机器人侧 PhotonVision 协处理器使用（同一份文件，两边不各配各的）。
+- **版权注意**：FIRST 场地美术随赛季发布，AS/PathPlanner 等工具内置先例充分；本项目自用无碍。若日后公开发布安装包，发布前复查当赛季素材条款（记录于发版 checklist）。
+
 ---
 
 ## 九、替代与降级方案（若 FRC 原生路线受阻）
@@ -369,7 +388,7 @@ WPILib 于 2026-04-24 公告 **2027 版新 Driver Station**（已发布 alpha，
 GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、基本日志。此阶段路径仍用 PathPlanner 等现成工具制作、手动部署——先让"演出能力"成立。v1.3 增补收尾候选：遥测图表（炮塔电压/速度曲线）、WPILOG 导出与"在 AdvantageScope 中打开"按钮（见第八节）。
 
 **Phase 3 —— 多机路径编辑器（约 2~3 月）**
-多图层画布、统一时间轴、碰撞检测、仿真预演、一键部署到各机。v1.3 增补：3D 场景视图（全场监控 + 机构姿态 componentPoses）与模型资产管线。
+多图层画布、统一时间轴、碰撞检测、仿真预演、一键部署到各机。v1.3 增补：3D 场景视图（全场监控 + 机构姿态 componentPoses）与模型资产管线。v1.6 增补：语言三语全量覆盖（机制骨架 Phase 2 收尾就位）；场地地图（赛季内置 + 用户导入含 AprilTag，field-model 的 FieldMap 类型）。
 
 **Phase 4 —— 全编制联排（按演出排期）**
 6 台全编制、安全体系完备、现场压力测试、带妆联排。
@@ -417,6 +436,8 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 - [Apple removes Control-click option for skipping Gatekeeper in macOS Sequoia — AppleInsider](https://appleinsider.com/articles/24/08/06/apple-removes-control-click-option-for-skipping-gatekeeper-in-macos-sequoia) ／ [Ars Technica 同题报道](https://arstechnica.com/gadgets/2024/08/macos-15-sequoia-makes-you-jump-through-more-hoops-to-disable-gatekeeper-app-checks/)
 - [macOS Code Signing（Tauri v2 官方签名/公证指南）](https://v2.tauri.app/distribute/sign/macos/)
 - [TN3179: Understanding Local Network Privacy — Apple Developer](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)
+- [AdvantageScope Custom Assets（场地/模型资产机制）](https://docs.advantagescope.org/more-features/custom-assets/) ／ [AdvantageScopeAssets 仓库（BSD-3，赛季场地素材与 2D/3D 资产）— GitHub](https://github.com/Mechanical-Advantage/AdvantageScopeAssets)
+- [WPILib AprilTag 文档（AprilTagFieldLayout 布局格式）](https://docs.wpilib.org/en/stable/docs/software/vision-processing/apriltag/intro.html)
 - [NetworkTablesClients（wpilibsuite；实况：仅含休眠的 .NET NT3 客户端，官方无 JS/TS 实现）— GitHub](https://github.com/wpilibsuite/NetworkTablesClients) ／ [ntcore-ts（社区 TS 客户端，本项目采用）](https://github.com/cjlawson02/ntcore-ts)
 - [The 2027 FIRST Driver Station — WPILib Blog（2026-04-24）](https://wp.wpi.edu/wpilib/2026/04/24/the-2027-first-driver-station/)
 - [FRC Radio Configuration Utility 下载 — FIRST TeamForge](https://usfirst.collab.net/sf/frs/do/listReleases/projects.wpilib/frs.frc_radio_configuration_utility)
@@ -432,4 +453,4 @@ GHPaths 雏形：6 机 NT 聚合、实时位置画布、一键启动/全停、�
 
 ---
 
-*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）；2026-08-19 增补第八节可视化与遥测子系统（v1.3，ADR-0006）、§7.5 分发与安装体验（v1.4）并依用户决策定稿为免费分发方案（v1.5，ADR-0007 v2）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
+*本报告基于 2026-08-18 的公开资料调研，并经同日独立核查修订为 v1.2（核查记录见《GHPaths_可行性研究报告_核查勘误_2026-08-18.md》）；2026-08-19 增补第八节可视化与遥测子系统（v1.3，ADR-0006）、§7.5 分发与安装体验（v1.4）并依用户决策定稿为免费分发方案（v1.5，ADR-0007 v2）、§8.7 语言设置与 §8.8 场地地图（v1.6，ADR-0008）。DS 协议细节（端口、包结构）以 Phase 0 实测与 2026 WPILib 镜像为准。*
