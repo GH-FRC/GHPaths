@@ -1,24 +1,26 @@
 package frc.ghpaths.show;
 
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.networktables.StringSubscriber;
-import edu.wpi.first.wpilibj.DriverStation;
 import frc.ghpaths.Constants;
-import frc.ghpaths.Robot;
 
 /**
  * 演出命令接收端（show-protocol ShowCommand 的机器人侧实现）。
  *
  * 语义（与 sim/fake-robot 一致,经八关探针验证）：
  *  - arm：装载轨迹（当前为占位;Phase 2 接 PathPlannerLib 路径加载）;
- *  - start(tStart)：开演前置检查——必须已 arm、必须在路径起点附近（>0.15m 拒绝）;
+ *  - start(tStart)：须已 arm 且未 stop（迟到的 start 不得自动装载——防闲置机器人被唤醒入场）;
+ *    hold 后重复 start 视同 resume（frozen 解除,与 sim 一致）;
  *  - stop：演出结束,就地待命;hold/resume 冻结/恢复 NT 层;
- *  - 迟到的 start 不得自动装载（防闲置机器人被唤醒入场）。
+ *  - 未 arm 的 start / STOPPED 下的 start 一律拒绝。
  */
 public final class ShowCommandReceiver {
     public enum ShowState { IDLE, ARMED, RUNNING, HELD, STOPPED }
 
     private ShowState state = ShowState.IDLE;
+    /** 已 arm 且未 stop（start 的可接受域;比 state==ARMED 宽——覆盖 hold 后重复 start） */
+    private boolean armed;
     private double tStartShowS;
     private boolean ntFrozen;
     private String fault = "";
@@ -27,12 +29,13 @@ public final class ShowCommandReceiver {
     private final StringSubscriber sub;
 
     public ShowCommandReceiver(NetworkTableInstance nt) {
-        sub = nt.getStringTopic(Constants.commandTopic()).subscribe("{}", 0.02);
+        sub = nt.getStringTopic(Constants.commandTopic())
+            .subscribe("{}", PubSubOption.periodic(0.02));
     }
 
     public void tick() {
-        for (var it = sub.readQueue(); it.hasNext();) {
-            String json = it.next().value;
+        for (var msg : sub.readQueue()) {
+            String json = msg.value;
             if (json.equals(lastJson)) continue; // 幂等去重
             lastJson = json;
             handle(json);
@@ -46,16 +49,17 @@ public final class ShowCommandReceiver {
             case "arm" -> {
                 // TODO(Phase 2): PathPlannerLib 路径装载（showId/segmentId → 本机轨迹）
                 state = ShowState.ARMED;
+                armed = true;
                 fault = "";
             }
             case "start" -> {
-                if (state != ShowState.ARMED) {
+                if (!armed) {
                     fault = "start 被拒绝:未先 arm";
                     return;
                 }
                 double tStart = extractNumber(json, "tStartShowUs");
                 tStartShowS = Double.isNaN(tStart) ? 0 : tStart / 1e6;
-                // 就位检查由 ShowCoordinator 做（需要知道当前位姿与路径起点）
+                // 就位检查由 ShowCoordinator 在此回调后做（需要位姿与路径起点）
                 state = ShowState.RUNNING;
                 ntFrozen = false;
                 fault = "";
@@ -64,6 +68,7 @@ public final class ShowCommandReceiver {
                 ntFrozen = true;
                 if (kind.equals("stop")) {
                     state = ShowState.STOPPED;
+                    armed = false;
                     tStartShowS = 0;
                     fault = "";
                 }

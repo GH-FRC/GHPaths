@@ -1,10 +1,8 @@
 package frc.ghpaths.show;
 
-import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StringPublisher;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.networktables.PubSubOption;
+import edu.wpi.first.networktables.StringSubscriber;
 import frc.ghpaths.Constants;
 import frc.ghpaths.Robot;
 
@@ -16,7 +14,11 @@ import frc.ghpaths.Robot;
  *  - 断时钟 >750ms → 停（运动许可收回）;
  *  - 时钟跳变防护：样本 tShow 只允许按真实到样间隔推进,不回跳;
  *    越界 → fault 闩锁（就地保持）,仅 stop→arm 复位;
- *  - running=false → hold（tShow 冻结,零命令保持）。
+ *  - running=false → hold（tShow 冻结,零命令保持）;
+ *  - 主控 stop 把时钟归零 → onShowStop() 清锚点,归零样本按全新首样接受（不误报跳变）。
+ *
+ * 锚点用本地到样时刻（FPGA 时钟）而非 NT 线路时间戳——与主控的 Cristian 时基估计
+ * 质量解耦（sim 的 arrivalMs 同语义）;NT timestamp 仅留诊断。
  */
 public final class ShowClock {
     private double tShowS;
@@ -26,24 +28,25 @@ public final class ShowClock {
     private boolean faulted;
     private String fault = "";
 
-    private final edu.wpi.first.networktables.StringSubscriber sub;
+    private final StringSubscriber sub;
 
     public ShowClock(NetworkTableInstance nt) {
-        sub = nt.getStringTopic(Constants.clockTopic()).subscribe("{}", 0.02);
+        sub = nt.getStringTopic(Constants.clockTopic())
+            .subscribe("{}", PubSubOption.periodic(0.02));
     }
 
     /** 每 20ms 调一次:读最新样本,更新时钟状态 */
     public void tick() {
-        for (var it = sub.readQueue(); it.hasNext();) {
-            var msg = it.next();
-            handleSample(msg.value, msg.timestamp / 1e6);
+        for (var msg : sub.readQueue()) {
+            // 本地到样时刻（FPGA 秒）;msg.timestamp 是主控对我方时基的估计值,仅诊断
+            handleSample(msg.value, Robot.localTime());
         }
     }
 
     private void handleSample(String json, double localArrivalS) {
-        // 极简 JSON 提取（避免完整 JSON 依赖;样本字段固定三个数字）
+        // 极简 JSON 提取（避免完整 JSON 依赖;样本字段固定）
         double tShowUs = extractNumber(json, "tShowUs");
-        boolean run = json.contains("\"running\":true");
+        boolean run = extractBoolean(json, "running");
         if (Double.isNaN(tShowUs)) return; // 坏样本忽略
 
         double sample = tShowUs / 1e6;
@@ -55,6 +58,10 @@ public final class ShowClock {
                 faulted = true;
                 fault = String.format("时钟跳变 %.2fs（拒绝跟踪,就地保持）", deltaS);
                 System.out.println("[ghpaths] " + fault);
+                // 锚点继续跟随（含归零样本）,arm→resetFault 时按新锚点重启
+                lastSampleTShowS = sample;
+                lastSampleLocalTime = localArrivalS;
+                running = run;
                 return;
             }
         }
@@ -83,7 +90,16 @@ public final class ShowClock {
             && Robot.localTime() - lastSampleLocalTime < Constants.CLOCK_TIMEOUT_S;
     }
 
-    /** stop→arm 路径复位（与 ShowCoordinator 联动） */
+    /** 主控 stop 时调（由 ShowCoordinator 检测 STOPPED 状态触发）：
+     *  清锚点,使 stop 后主控的时钟归零样本按全新首样接受,不误报跳变（与 sim 的
+     *  stop 清 lastTShowUs + showStarted=false 门控等效） */
+    public void onShowStop() {
+        lastSampleLocalTime = -1;
+        tShowS = 0;
+        lastSampleTShowS = 0;
+    }
+
+    /** arm 转换 = 故障复位路径（stop→arm;与 sim 一致） */
     public void resetFault() {
         faulted = false;
         fault = "";
@@ -106,5 +122,13 @@ public final class ShowClock {
         } catch (NumberFormatException e) {
             return Double.NaN;
         }
+    }
+
+    /** 极简布尔提取:"key":true / "key": false（容空格） */
+    private static boolean extractBoolean(String json, String key) {
+        String pat = "\"" + key + "\":";
+        int i = json.indexOf(pat);
+        if (i < 0) return false;
+        return json.regionMatches(i + pat.length(), "true", 0, 4);
     }
 }
