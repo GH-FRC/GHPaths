@@ -37,7 +37,7 @@ assert(catalog.some((e: { name: string }) => e.name === '/.schema/Pose2d'), 'sch
 // parser 侧 normalizeEntryName 会补前导 /（'robot/Pose2d' → '/robot/Pose2d'）
 assert(catalog.some((e: { name: string }) => e.name === '/robot/Pose2d'), 'pose entry 存在');
 
-const decoded = [...decodeRecords(records, catalog)]; // Generator → 数组
+const decoded = [...decodeRecords(records)]; // Generator → 数组（catalog 不入参;context 从记录自建）
 const dataRecords = decoded.filter((r: { type: string }) => r.type !== 'control'); // type=实际类型串,control=控制记录
 console.log(`数据记录 ${dataRecords.length} 条`);
 
@@ -48,7 +48,7 @@ console.log(`数据记录 ${dataRecords.length} 条`);
 const rawPose = records.find(
   (r: { kind: string; record?: { entryId: number } }) =>
     r.kind === 'data' && r.record?.entryId === poseId,
-) as { record: { payload: Buffer } };
+) as unknown as { record: { payload: Buffer } };
 assert(rawPose !== undefined, 'pose 原始记录存在');
 assert(rawPose.record.payload.length === 24, 'pose payload 24 字节（3×double）');
 const dv = new DataView(rawPose.record.payload.buffer, rawPose.record.payload.byteOffset, rawPose.record.payload.byteLength);
@@ -75,6 +75,7 @@ const jsonl = [
 ].join('\n');
 const blob = jsonlToWpilog(jsonl);
 assert(blob !== null, 'jsonl→wpilog 成功');
+if (blob === null) throw new Error('jsonl→wpilog 返回 null');
 const full = Buffer.from(await blob.arrayBuffer());
 writeFileSync('/tmp/show.wpilog', full);
 const records2 = [...readRecords(new Uint8Array(full).buffer)];
