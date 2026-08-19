@@ -484,7 +484,7 @@ export function App() {
                   </button>
                 </>
               )}
-              <span className="card-batt">
+              <span className="card-batt ${ds?.linked && ds.batteryVolts < 11 ? 'batt-critical' : ds?.linked && ds.batteryVolts < 11.5 ? 'batt-warn' : ''}">
                 {ds?.linked ? `${ds.batteryVolts.toFixed(1)}V` : ''}
                 <Sparkline data={telemetry.battery.get(r.robot)} />
               </span>
