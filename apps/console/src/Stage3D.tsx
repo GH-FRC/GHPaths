@@ -10,7 +10,9 @@
  * x→x、y→z（three 的 z 朝观众,一致性靠 mirror 不需要——直接映射即可）。
  * 相机：透视,固定俯瞰角,OrbitControls 待后续（先免依赖,静态视角够监控用）。
  */
-import { Canvas } from '@react-three/fiber';
+import { useMemo } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
 import type { RobotId } from '@ghpaths/show-protocol';
 
@@ -46,6 +48,21 @@ function RobotBox({ data, index }: { data: Robot3DData; index: number }): JSX.El
   );
 }
 
+function OrbitControls(): null {
+  const { camera, gl } = useThree();
+  const controls = useMemo(() => {
+    const c = new ThreeOrbitControls(camera, gl.domElement);
+    c.maxPolarAngle = Math.PI / 2.1;
+    c.minDistance = 5;
+    c.maxDistance = 30;
+    c.enableDamping = true;
+    c.dampingFactor = 0.08;
+    return c;
+  }, [camera, gl]);
+  useFrame(() => controls.update());
+  return null;
+}
+
 function TrailLine({ points, color }: { points: Array<{ x: number; y: number }>; color: string }): JSX.Element | null {
   if (points.length < 2) return null;
   const verts = new Float32Array(points.length * 3);
@@ -75,6 +92,7 @@ export function Stage3D({ robots }: { robots: Robot3DData[] }): JSX.Element {
         shadows
         className="stage3d"
       >
+        <OrbitControls />
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 15, 5]} castShadow intensity={0.8} />
         {/* 舞台地板 */}
