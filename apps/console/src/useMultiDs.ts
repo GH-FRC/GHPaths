@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { MULTI_DS_CONTROL_PORT, type MultiDsControl, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
+import { subscribeTicks } from './tick-source';
 
 export type MultiDsCommand =
   | { type: 'enable'; team: number }
@@ -30,7 +31,7 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
   useEffect(() => {
     let stopped = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let pingTimer: ReturnType<typeof setInterval> | null = null;
+    let unsubPing: (() => void) | null = null;
 
     const connect = (): void => {
       if (stopped) return;
@@ -43,7 +44,8 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
         const send = (m: MultiDsControl): void => ws.send(JSON.stringify(m));
         send({ type: 'uiPing' });
         for (const cmd of pendingRef.current.splice(0)) send(cmd);
-        pingTimer = setInterval(() => send({ type: 'uiPing' }), 500);
+        // uiPing 走 Worker 节拍（每 5 拍 = 500ms）：后台标签不再因节流误触发宽限期全停
+        unsubPing = subscribeTicks(5, () => send({ type: 'uiPing' }));
       };
       ws.onmessage = (ev: MessageEvent) => {
         if (wsRef.current !== ws) return;
@@ -61,8 +63,8 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
         if (wsRef.current !== ws) return;
         setConnected(false);
         setRobots(new Map()); // 断连后清空快照，避免显示过期的"运动中"
-        if (pingTimer) clearInterval(pingTimer);
-        pingTimer = null;
+        unsubPing?.();
+        unsubPing = null;
         wsRef.current = null;
         if (!stopped) reconnectTimer = setTimeout(connect, 1500);
       };
@@ -73,7 +75,7 @@ export function useMultiDs(): MultiDsState & { send: (cmd: MultiDsCommand) => vo
     return () => {
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (pingTimer) clearInterval(pingTimer);
+      unsubPing?.();
       wsRef.current?.close();
     };
   }, []);
