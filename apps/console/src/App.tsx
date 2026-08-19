@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence } from '@ghpaths/field-model';
+import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, SAFETY_MIN_SEPARATION_M, stageGeofence } from '@ghpaths/field-model';
 import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
 import { useMultiDs } from './useMultiDs';
@@ -458,7 +458,7 @@ export function App() {
 
       {!replayActive && !editMode && (
         <section className="charts-row">
-          <SpacingChart data={telemetry.spacing} thresholdM={1.05} windowMs={60_000} />
+          <SpacingChart data={telemetry.spacing} thresholdM={SAFETY_MIN_SEPARATION_M} windowMs={60_000} />
         </section>
       )}
 

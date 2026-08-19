@@ -14,6 +14,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   createDemoShow,
   minSeparationM,
+  SAFETY_MIN_SEPARATION_M,
   type Show,
   type Waypoint,
 } from '@ghpaths/field-model';
@@ -39,8 +40,6 @@ export interface PathEditor extends EditorState {
   exportJson: () => string;
   loadJson: (json: string) => string | null;
 }
-
-const SAFETY_MIN_SEPARATION_M = 1.05; // 与 createDemoShow 构建期断言同源（待提炼共享常量）
 
 export function usePathEditor(): PathEditor {
   const initial = useMemo(() => createDemoShow(simTopology.teams()), []);
