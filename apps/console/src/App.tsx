@@ -7,6 +7,7 @@ import { useShow } from './useShow';
 import { useRecorder } from './useRecorder';
 import { useReplay } from './useReplay';
 import { useBackends } from './useBackends';
+import { jsonlToWpilog } from './wpilog-export';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -70,18 +71,36 @@ function dsStateText(ds: MultiDsRobotStatus | undefined, ntLive: boolean, showSt
   }
 }
 
-function downloadJsonl(text: string): void {
-  const blob = new Blob([text], { type: 'application/jsonl' });
+function downloadBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const now = new Date();
-  const p = (n: number): string => String(n).padStart(2, '0');
-  a.download = `showlog-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}.jsonl`;
+  a.download = name;
   a.click();
   // Safari 对即时吊销的 blob URL 有中止下载的历史问题，延迟吊销
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+
+function downloadJsonl(text: string): void {
+  downloadBlob(
+    new Blob([text], { type: 'application/jsonl' }),
+    `showlog-${timestampForFilename()}.jsonl`,
+  );
+}
+
+function timestampForFilename(): string {
+  const now = new Date();
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+}
+
+/** 导出 WPILOG（ADR-0006：AdvantageScope 直接打开,2D 场地 + 曲线） */
+function downloadWpilog(jsonl: string): void {
+  const blob = jsonlToWpilog(jsonl);
+  if (blob) downloadBlob(blob, `showlog-${timestampForFilename()}.wpilog`);
+}
+
+
 
 export function App() {
   const recorder = useRecorder();
@@ -182,9 +201,17 @@ export function App() {
               </>
             )}
             {recorder.lineCount > 0 && !recorder.recording && (
-              <button onClick={() => { const t = recorder.exportText(); if (t) downloadJsonl(t); }}>
-                导出日志
-              </button>
+              <>
+                <button onClick={() => { const t = recorder.exportText(); if (t) downloadJsonl(t); }}>
+                  导出日志
+                </button>
+                <button
+                  onClick={() => { const t = recorder.exportText(); if (t) downloadWpilog(t); }}
+                  title="AdvantageScope 可直接打开（2D 场地 + 曲线）"
+                >
+                  导出 WPILOG
+                </button>
+              </>
             )}
             {show.phase === 'idle' && (
               <>
