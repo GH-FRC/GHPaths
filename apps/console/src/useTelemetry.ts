@@ -6,6 +6,7 @@
  */
 import { useMemo, useRef } from 'react';
 import type { PoseSample, RobotId } from '@ghpaths/show-protocol';
+import { minSeparationFromPositions } from '@ghpaths/field-model';
 
 export interface TelemetryPoint {
   tMs: number;
@@ -42,15 +43,9 @@ export function useTelemetry(): TelemetryState {
       (robot: RobotId, pose: PoseSample): void => {
         latestPoses.current.set(robot, pose);
         if (latestPoses.current.size < 2) return;
-        // 全对最小中心距（6 机 15 对;样本级 O(n²) 规模极小）
-        let min = Number.POSITIVE_INFINITY;
-        const poses = [...latestPoses.current.values()];
-        for (let i = 0; i < poses.length; i++) {
-          for (let j = i + 1; j < poses.length; j++) {
-            const d = Math.hypot(poses[i]!.xM - poses[j]!.xM, poses[i]!.yM - poses[j]!.yM);
-            if (d < min) min = d;
-          }
-        }
+        const positions = new Map<number, { x: number; y: number }>();
+        for (const [id, p] of latestPoses.current) positions.set(id, { x: p.xM, y: p.yM });
+        const min = minSeparationFromPositions(positions);
         const tMs = performance.now();
         spacingRef.current.push({ tMs, v: min });
         const cutoff = tMs - SPACING_WINDOW_MS;
