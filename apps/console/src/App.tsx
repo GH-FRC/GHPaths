@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, SAFETY_MIN_SEPARATION_M, stageGeofence } from '@ghpaths/field-model';
+import { DEFAULT_FOOTPRINT, SAFETY_MIN_SEPARATION_M, stageGeofence } from '@ghpaths/field-model';
 import { simTopology, type MultiDsRobotStatus } from '@ghpaths/show-protocol';
 import { useRobots, type RobotState } from './useRobots';
 import { useMultiDs } from './useMultiDs';
@@ -18,6 +18,9 @@ import { Sparkline } from './Sparkline';
 import { useI18n } from './i18n';
 import type { Strings } from './ui-strings';
 import { Preferences } from './Preferences';
+import { FieldMapDialog } from './FieldMapDialog';
+import { FieldBackdrop } from './FieldBackdrop';
+import { useFieldMap } from './useFieldMap';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -114,6 +117,7 @@ function downloadWpilog(jsonl: string): void {
 
 export function App() {
   const { S } = useI18n();
+  const fieldMap = useFieldMap();
   const recorder = useRecorder();
   const replay = useReplay();
   const backends = useBackends();
@@ -137,8 +141,8 @@ export function App() {
   const activeShow = editor.show;
   const editorPaths = useMemo(() => new Map(editor.show.paths.map((p) => [p.robot, p])), [editor.show]);
   const show = useShow(publishClock, sendCommand, teams, activeShow.durationShowUs, activeShow.id, recorder.pushShowEvent, editorPaths);
-  const { widthM: w, depthM: d } = DEFAULT_STAGE;
-  const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
+  const { widthM: w, depthM: d } = fieldMap.map.sizeM;
+  const fence = fieldMap.map.geofence ?? stageGeofence(fieldMap.map.sizeM, DEFAULT_FOOTPRINT);
   const liveCount = robots.filter((r) => r.live).length;
   const allLive = liveCount === robots.length && robots.length > 0;
   const replayData = replay.data;
@@ -280,6 +284,7 @@ export function App() {
             )}
           </>
         )}
+        <FieldMapDialog fieldMap={fieldMap} />
         <Preferences />
       </header>
 
@@ -315,6 +320,8 @@ export function App() {
       {!view3D && !editMode && (
       <section className="stage-wrap">
         <svg viewBox={`${-w / 2} ${-d / 2 - 0.6} ${w} ${d + 1.2}`} className="stage">
+          {/* 场地底图 + AprilTag（ADR-0008 §8.8;导入后替换纯矢量舞台） */}
+          <FieldBackdrop map={fieldMap.map} />
           <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
           <rect
             x={-fence.widthM / 2}
@@ -427,7 +434,7 @@ export function App() {
 
       {editMode && !replayActive ? (
         <section className="stage-wrap">
-          <EditorCanvas editor={editor} running={show.phase !== 'idle'} />
+          <EditorCanvas editor={editor} running={show.phase !== 'idle'} map={fieldMap.map} />
           <TimelineBar editor={editor} />
           <div className="editor-bar">
             <span className="editor-hint">

@@ -117,6 +117,28 @@ export const EN: Strings = {
   prefLangHint: 'Applies immediately and persists (localStorage; migrates to Tauri store once packaged)',
   prefCloseHint: 'Esc to close · ⌘, to open',
 
+  // 场地地图（ADR-0008 §8.8）
+  fmButton: 'Field',
+  fmTitle: 'Field Map',
+  fmCurrent: 'Current field',
+  fmSize: (w, d) => `${w}×${d}m`,
+  fmTags: (n) => `${n} AprilTags`,
+  fmImageYes: 'Image: yes',
+  fmImageNo: 'Image: none',
+  fmImportJson: 'Import field package / AprilTag layout (JSON)',
+  fmImportPng: 'Import field image (PNG)',
+  fmExportTags: 'Export AprilTag layout',
+  fmReset: 'Reset to default stage',
+  fmPngTitle: 'Field image size (m)',
+  fmPngHint: (w, h) => `Image is ${w}×${h}px — enter the field size it covers (full-bleed mapping; corner calibration arrives in Phase 3)`,
+  fmWidthM: 'Width (m)',
+  fmDepthM: 'Depth (m)',
+  fmOk: 'OK',
+  fmCancel: 'Cancel',
+  fmImported: (name) => `Imported “${name}”`,
+  fmNoTags: 'No AprilTags on the current field — import a layout before exporting',
+  fmBadJson: (err) => `Import failed: ${err}`,
+
   // 错误边界
   ebTitle: '⚠ UI Render Error',
   ebBody: 'multi-DS and the robots are unaffected (separate processes). Click below to recover, or reload the page.',

@@ -11,10 +11,11 @@
  * 世界→屏幕:y 翻转与 App 画布同约定;米单位,viewBox 与舞台同尺寸。
  */
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence, type Show, type Waypoint } from '@ghpaths/field-model';
+import { DEFAULT_FOOTPRINT, DEFAULT_FIELD_MAP, stageGeofence, type FieldMap, type Show, type Waypoint } from '@ghpaths/field-model';
 import type { RobotId } from '@ghpaths/show-protocol';
 import type { PathEditor } from './usePathEditor';
 import { useI18n } from './i18n';
+import { FieldBackdrop } from './FieldBackdrop';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -23,13 +24,17 @@ const INSERT_HIT_R = 0.28; // 插入预览点命中半径（米）
 export function EditorCanvas({
   editor,
   running,
+  map,
 }: {
   editor: PathEditor;
   running: boolean;
+  /** 场地地图（ADR-0008 §8.8）——画布尺寸与底图来自当前地图;缺省内置舞台 */
+  map?: FieldMap;
 }): JSX.Element {
   const { S } = useI18n();
-  const { widthM: w, depthM: d } = DEFAULT_STAGE;
-  const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
+  const fieldMap = map ?? DEFAULT_FIELD_MAP;
+  const { widthM: w, depthM: d } = fieldMap.sizeM;
+  const fence = fieldMap.geofence ?? stageGeofence(fieldMap.sizeM, DEFAULT_FOOTPRINT);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [dragging, setDragging] = useState(false);
   const [hoverSeg, setHoverSeg] = useState<number | null>(null);
@@ -78,6 +83,8 @@ export function EditorCanvas({
       onPointerUp={() => setDragging(false)}
       onPointerLeave={() => setDragging(false)}
     >
+      {/* 场地底图 + AprilTag（编辑器与主画布同一地图,单一来源） */}
+      <FieldBackdrop map={fieldMap} />
       <rect x={-w / 2} y={-d / 2} width={w} height={d} className="stage-border" />
       <rect
         x={-fence.widthM / 2}
@@ -174,14 +181,14 @@ export function EditorCanvas({
         );
       })}
 
-      {running && <EditorFooter text={S.edShowRunning} />}
+      {running && <EditorFooter text={S.edShowRunning} depthM={d} />}
     </svg>
   );
 }
 
-function EditorFooter({ text }: { text: string }): JSX.Element {
+function EditorFooter({ text, depthM }: { text: string; depthM: number }): JSX.Element {
   return (
-    <text x={0} y={-DEFAULT_STAGE.depthM / 2 - 0.2} textAnchor="middle" className="editor-banner">
+    <text x={0} y={-depthM / 2 - 0.2} textAnchor="middle" className="editor-banner">
       {text}
     </text>
   );
