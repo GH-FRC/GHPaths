@@ -625,3 +625,29 @@ button:hover {
   font-size: 11px;
   font-weight: 600;
 }
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.error-page h1 {
+  font-size: 24px;
+  color: #ff7b72;
+}
+
+.error-detail {
+  color: #9aa4b2;
+  font-size: 13px;
+  max-width: 500px;
+  font-family: monospace;
+}
+
+.error-hint {
+  color: #ffa657;
+  font-size: 13px;
+}
