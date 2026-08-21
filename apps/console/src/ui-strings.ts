@@ -123,6 +123,28 @@ export const S = {
   prefLangHint: '修改立即生效并持久化（localStorage;打包后迁移至 Tauri store）',
   prefCloseHint: 'Esc 关闭 · ⌘, 打开',
 
+  // 场地地图（ADR-0008 §8.8）
+  fmButton: '场地',
+  fmTitle: '场地地图',
+  fmCurrent: '当前场地',
+  fmSize: (w: number, d: number) => `${w}×${d}m`,
+  fmTags: (n: number) => `AprilTag ${n} 个`,
+  fmImageYes: '底图：有',
+  fmImageNo: '底图：无',
+  fmImportJson: '导入场地包 / AprilTag 布局 (JSON)',
+  fmImportPng: '导入底图 (PNG)',
+  fmExportTags: '导出 AprilTag 布局',
+  fmReset: '恢复默认舞台',
+  fmPngTitle: '底图尺寸（米）',
+  fmPngHint: (w: number, h: number) => `图片 ${w}×${h}px——输入对应场地尺寸（满铺映射;角点标定 Phase 3）`,
+  fmWidthM: '宽（米）',
+  fmDepthM: '深（米）',
+  fmOk: '确定',
+  fmCancel: '取消',
+  fmImported: (name: string) => `已导入「${name}」`,
+  fmNoTags: '当前场地无 AprilTag——先导入布局再导出',
+  fmBadJson: (err: string) => `导入失败：${err}`,
+
   // 错误边界（ErrorBoundary——类组件,经 getCurrentStrings() 读取）
   ebTitle: '⚠ UI 渲染异常',
   ebBody: 'multi-DS 与机器人不受影响（独立进程）。点击下方恢复,或刷新页面。',
