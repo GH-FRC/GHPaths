@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "fields:pack": "esbuild scripts/pack-season-fields.mjs --bundle --format=esm --platform=node --outfile=scripts/.pack-fields.bundle.mjs --log-level=error && node scripts/.pack-fields.bundle.mjs"
   },
   "dependencies": {
     "@ghpaths/field-model": "*",

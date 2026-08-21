@@ -138,6 +138,8 @@ export const EN: Strings = {
   fmImported: (name) => `Imported “${name}”`,
   fmNoTags: 'No AprilTags on the current field — import a layout before exporting',
   fmBadJson: (err) => `Import failed: ${err}`,
+  fmBuiltin: 'Built-in fields (bundled with the app, offline)',
+  fmApply: 'Apply',
 
   // 错误边界
   ebTitle: '⚠ UI Render Error',
