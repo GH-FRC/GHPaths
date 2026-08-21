@@ -9,6 +9,7 @@
  */
 import { useRef, useState } from 'react';
 import type { TelemetryPoint } from './useTelemetry';
+import { useI18n } from './i18n';
 
 const W = 100; // viewBox 宽（%拉伸）——非等比 SVG 用 preserveAspectRatio="none" 的坑:文字会变形。
 // 故采用固定 viewBox 并整宽渲染,文本不变形。
@@ -31,6 +32,7 @@ export function SpacingChart({
   title: string;
   unit?: string;
 }): JSX.Element {
+  const { S } = useI18n();
   const [hover, setHover] = useState<{ x: number; point: TelemetryPoint } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -72,7 +74,7 @@ export function SpacingChart({
 
   return (
     <div className="chart-card">
-      <div className="chart-title">{title} <span className="chart-sub">{unit} · 近 60s</span></div>
+      <div className="chart-title">{title} <span className="chart-sub">{unit} · {S.chartLast60s}</span></div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -98,7 +100,7 @@ export function SpacingChart({
           className="chart-threshold"
         />
         <text x={W - PAD_R - 2} y={yOf(thresholdM) - 3} textAnchor="end" className="chart-threshold-text">
-          安全阈值 {thresholdM.toFixed(2)}m
+          {S.chartThreshold(thresholdM)}
         </text>
         {/* 数据线（2px,强调蓝） */}
         {path && <path d={path} className="chart-line" fill="none" />}

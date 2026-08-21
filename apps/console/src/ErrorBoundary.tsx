@@ -4,6 +4,7 @@
  * （multi-DS 是独立进程,UI 崩溃不影响心跳/看门狗——但 UI 要能自恢复。）
  */
 import { Component, type ReactNode } from 'react';
+import { getCurrentStrings } from './i18n';
 
 interface Props {
   children: ReactNode;
@@ -27,15 +28,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (this.state.hasError) {
+      // 类组件无法用钩子——取当前语言包（语言切换后错误页不重渲,可接受;见 i18n.tsx 注释）
+      const S = getCurrentStrings();
       return (
         <main className="app error-page">
-          <h1>⚠ UI 渲染异常</h1>
+          <h1>{S.ebTitle}</h1>
           <p className="error-detail">{this.state.error?.message ?? String(this.state.error)}</p>
           <p className="error-hint">
-            multi-DS 与机器人不受影响（独立进程）。点击下方恢复,或刷新页面。
+            {S.ebBody}
           </p>
           <button onClick={() => this.setState({ hasError: false, error: null })}>
-            恢复界面
+            {S.ebRecover}
           </button>
         </main>
       );

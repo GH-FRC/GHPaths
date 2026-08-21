@@ -16,6 +16,7 @@
     "@ghpaths/show-protocol": "*",
     "@react-three/fiber": "^8.18.0",
     "@types/three": "^0.185.4",
+    "opencc-js": "^1.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.185.1"
@@ -26,6 +27,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "playwright-core": "^1.62.1",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
   }

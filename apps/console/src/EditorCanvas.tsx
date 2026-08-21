@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_FOOTPRINT, DEFAULT_STAGE, stageGeofence, type Show, type Waypoint } from '@ghpaths/field-model';
 import type { RobotId } from '@ghpaths/show-protocol';
 import type { PathEditor } from './usePathEditor';
+import { useI18n } from './i18n';
 
 const RAD2DEG = 180 / Math.PI;
 
@@ -26,6 +27,7 @@ export function EditorCanvas({
   editor: PathEditor;
   running: boolean;
 }): JSX.Element {
+  const { S } = useI18n();
   const { widthM: w, depthM: d } = DEFAULT_STAGE;
   const fence = stageGeofence(DEFAULT_STAGE, DEFAULT_FOOTPRINT);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -164,7 +166,7 @@ export function EditorCanvas({
                     className="editor-insert-hint"
                     onClick={() => editor.insertWaypoint(i)}
                   >
-                    <title>插入航点</title>
+                    <title>{S.edInsertWaypoint}</title>
                   </circle>
                 );
               })}
@@ -172,7 +174,7 @@ export function EditorCanvas({
         );
       })}
 
-      {running && <EditorFooter text="演出运行中——编辑已暂停（结束演出后恢复）" />}
+      {running && <EditorFooter text={S.edShowRunning} />}
     </svg>
   );
 }

@@ -1,8 +1,16 @@
 /**
- * ui-strings —— console UI 的全部用户可见文案（中文）。
- * ADR-0008 i18n 的前置：先集中管理（本文件即为 key→文案 的单一来源），
- * 后续接 react-i18next 时把这里改成翻译文件即可。
+ * ui-strings —— console UI 的全部用户可见文案（zh-CN 简体包,即 key 目录与单一来源）。
+ * ADR-0008 i18n：
+ *  - 本文件是简体包 + 形状定义（Strings）;
+ *  - en-US 手写包见 strings-en.ts;
+ *  - zh-TW 由 i18n.tsx 用 OpenCC 从本包运行时派生（+机器人术语表人工校对）;
+ *  - 数据与 topic/日志字段不翻译。
+ * 改动 checklist：新增/修改 key 时三语言同步（en 包补齐;繁体自动跟随）。
  */
+
+/** 函数型文案的统一约束（供 satisfies 推导用） */
+type StrFn = (...args: never[]) => string;
+
 export const S = {
   // 标题与徽章
   appName: 'GHPaths 演控台',
@@ -38,6 +46,13 @@ export const S = {
   enableAll: '全部使能',
   disableAll: '全部失能',
   stopAll: '急停全部',
+  prefs: '偏好设置',
+
+  // 按钮 title 提示
+  t2d3dSwitch: '2D/3D 视图切换',
+  tPathEditor: '多机路径编辑器',
+  tNoEditDuringShow: '演出进行中不可编辑',
+  tWpilogHint: 'AdvantageScope 可直接打开（2D 场地 + 曲线）',
 
   // 后端面板
   simLabel: '模拟机器人',
@@ -50,6 +65,7 @@ export const S = {
   stNoData: '无数据',
   stFrozen: '已冻结',
   stMoving: '运动中',
+  stRunNoData: '运行?无数据',
   stHolding: '保持中',
   stShowEnded: '演出结束',
   stArmed: '待演',
@@ -61,16 +77,25 @@ export const S = {
 
   // 编辑器
   edHint: '点击航点选中 · 拖动移动 · 线上空处悬停显示 + 插入 · Delete 删除中间点（端点固定）',
+  edInsertWaypoint: '插入航点',
   edNoViolation: '无碰撞风险 ✓',
   edViolation: (n: number, min: number) => `碰撞风险 ${n} 对（最窄 ${min.toFixed(2)}m < 1.05m）`,
   edLoadJson: '载入 JSON',
   edExportJson: '导出 JSON',
   edResetDemo: '恢复演示',
+  edLoaded: '已载入',
   edShowRunning: '演出运行中——编辑已暂停（结束演出后恢复）',
+
+  // 时间线（编辑器底部）
+  tlBreaches: (n: number) => `⚠ ${n} 对`,
 
   // 提示
   hintNoRobots: '未检测到模拟机器人 —— 在上方面板启动「模拟机器人」后端。',
+  hintNoRobotsPrefix: '未检测到模拟机器人 ——',
+  hintRunNpmSim: '先在仓库根目录运行 npm run sim。',
   hintNoDs: '机器人已连 NT，但 multi-DS 未连接 —— 在上方面板启动「multi-DS」后端。',
+  hintNoDsPrefix: '机器人已连 NT，但 multi-DS 未连接 ——',
+  hintRunNpmDs: '运行 npm run ds 后即可使能。',
   hintReady: '就绪 —— 点「启动演出」开演（使能 + 时钟 + 路径一起走，自动录制）。',
   hint3d: '3D 全场监控（几何占位;ADR-0006 Phase 3 换 .glb 模型）',
   hintParseFail: (err: string) => `日志解析失败：${err}`,
@@ -81,6 +106,7 @@ export const S = {
   replayMinSep: (v: number) => `最窄间距 ${v.toFixed(2)}m`,
   replayAtTime: (t: number) => `@${(t / 1000).toFixed(1)}s`,
   replayBreaches: (n: number) => `超阈值 ${n} 段`,
+  replayBreachRange: (start: number, end: number) => `${start.toFixed(1)}s ~ ${end.toFixed(1)}s 间距超阈值`,
 
   // 图表
   chartMinSep: '最小机间距',
@@ -89,4 +115,19 @@ export const S = {
   chartUnitM: 'm',
   chartUnitPpm: 'ppm',
   chartLast60s: '近 60s',
-} as const;
+
+  // 偏好设置窗口（ADR-0008 §8.7）
+  prefTitle: '偏好设置',
+  prefLanguage: '语言',
+  prefLangAuto: '跟随系统',
+  prefLangHint: '修改立即生效并持久化（localStorage;打包后迁移至 Tauri store）',
+  prefCloseHint: 'Esc 关闭 · ⌘, 打开',
+
+  // 错误边界（ErrorBoundary——类组件,经 getCurrentStrings() 读取）
+  ebTitle: '⚠ UI 渲染异常',
+  ebBody: 'multi-DS 与机器人不受影响（独立进程）。点击下方恢复,或刷新页面。',
+  ebRecover: '恢复界面',
+} satisfies Record<string, string | StrFn>;
+
+/** 文案目录形状——三语言包的共同类型（en 包手写,繁体包派生） */
+export type Strings = typeof S;

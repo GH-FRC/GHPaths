@@ -8,8 +8,10 @@
 import { useRef, useState } from 'react';
 import type { RobotId } from '@ghpaths/show-protocol';
 import type { PathEditor } from './usePathEditor';
+import { useI18n } from './i18n';
 
 export function TimelineBar({ editor }: { editor: PathEditor }): JSX.Element | null {
+  const { S } = useI18n();
   const path = editor.show.paths.find((p) => p.robot === editor.selectedRobot);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [dragWp, setDragWp] = useState<number | null>(null);
@@ -43,7 +45,7 @@ export function TimelineBar({ editor }: { editor: PathEditor }): JSX.Element | n
     <div className="timeline-bar">
       <span className="timeline-label">{editor.selectedRobot}</span>
       {editor.violations.length > 0 && (
-        <span className="timeline-alert">⚠ {editor.violations.length} 对</span>
+        <span className="timeline-alert">{S.tlBreaches(editor.violations.length)}</span>
       )}
       <svg
         ref={svgRef}
