@@ -149,7 +149,28 @@ await page.locator('h1').waitFor();
 await page.locator('.field-image').waitFor({ timeout: 3000 });
 ok('reload 后底图仍在（localStorage 持久化）', true);
 
-// ---- 6. 恢复默认 ----
+// ---- 6. 内置赛季场地（打包清单;dev 下 public/fields 托管底图） ----
+await openDlg();
+await page.locator('.field-card').getByRole('button', { name: /Andymark.*应用/ }).click();
+await page.waitForTimeout(500);
+info = await page.locator('.field-info').textContent();
+ok('内置:Andymark 应用（16.518×8.043m/32 标签/有底图）',
+  /16\.518×8\.043m/.test(info ?? '') && /AprilTag 32 个/.test(info ?? '') && /底图：有/.test(info ?? ''), `info="${info}"`);
+await page.keyboard.press('Escape');
+const builtinTags = await page.locator('.field-tag').count();
+ok(`内置:标签渲染（${builtinTags} 个）`, builtinTags === 32);
+await page.locator('.field-image').first().waitFor({ timeout: 3000 });
+ok('内置:底图渲染', true);
+const dlB = page.waitForEvent('download', { timeout: 5000 });
+await page.getByRole('button', { name: '场地', exact: true }).click();
+await page.locator('.field-card').getByRole('button', { name: '导出 AprilTag 布局' }).click();
+const dB = await dlB;
+await dB.saveAs(OUT + '/exported-2026.json');
+const exportedB = JSON.parse(readFileSync(OUT + '/exported-2026.json', 'utf8'));
+ok('内置:导出 32 标签（WPILib 格式）', exportedB.tags.length === 32 && exportedB.field.length > 16);
+await page.keyboard.press('Escape');
+
+// ---- 7. 恢复默认 ----
 await openDlg();
 await page.locator('.field-card').getByRole('button', { name: '恢复默认舞台' }).click();
 await page.waitForTimeout(300);

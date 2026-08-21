@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n';
-import type { FieldMapApi } from './useFieldMap';
+import { BUILTIN_FIELDS, type FieldMapApi } from './useFieldMap';
 
 function downloadText(text: string, name: string, mime: string): void {
   const a = document.createElement('a');
@@ -111,6 +111,18 @@ export function FieldMapDialog({ fieldMap }: { fieldMap: FieldMapApi }): JSX.Ele
               {map.name} · {S.fmSize(map.sizeM.widthM, map.sizeM.depthM)} · {S.fmTags(map.tags.length)} ·{' '}
               {map.image ? S.fmImageYes : S.fmImageNo}
             </p>
+            {BUILTIN_FIELDS.length > 0 && (
+              <>
+                <p className="prefs-section">{S.fmBuiltin}</p>
+                <div className="prefs-options">
+                  {BUILTIN_FIELDS.map((b) => (
+                    <button key={b.map.id} onClick={() => { fieldMap.applyBuiltin(b.map); setMsg(null); }}>
+                      {b.map.name} · {S.fmApply}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             <div className="prefs-options">
               <button onClick={() => jsonRef.current?.click()}>{S.fmImportJson}</button>
               <button onClick={() => pngRef.current?.click()}>{S.fmImportPng}</button>

@@ -144,6 +144,8 @@ export const S = {
   fmImported: (name: string) => `已导入「${name}」`,
   fmNoTags: '当前场地无 AprilTag——先导入布局再导出',
   fmBadJson: (err: string) => `导入失败：${err}`,
+  fmBuiltin: '内置场地（随版本打包,离线可用）',
+  fmApply: '应用',
 
   // 错误边界（ErrorBoundary——类组件,经 getCurrentStrings() 读取）
   ebTitle: '⚠ UI 渲染异常',

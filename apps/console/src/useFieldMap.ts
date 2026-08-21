@@ -12,6 +12,9 @@ import {
   DEFAULT_FIELD_MAP, exportAprilTagLayout, parseAprilTagLayout, validateFieldMap,
   type FieldMap,
 } from '@ghpaths/field-model';
+import { BUILTIN_FIELDS } from './fields/builtin-fields';
+
+export { BUILTIN_FIELDS };
 
 const STORAGE_KEY = 'ghpaths.fieldmap';
 
@@ -43,6 +46,8 @@ export interface FieldMapApi {
   importPng: (dataUrl: string, widthPx: number, heightPx: number, widthM: number, depthM: number) => string | null;
   /** 导出 AprilTag 布局（WPILib 官方格式;无标签返回 null） */
   exportTags: () => string | null;
+  /** 应用内置场地（赛季场地清单;浅拷贝入 state） */
+  applyBuiltin: (map: FieldMap) => void;
   reset: () => void;
   /** 持久化失败（配额）提示;ack 后清 */
   storeWarning: string | null;
@@ -111,6 +116,10 @@ export function useFieldMap(): FieldMapApi {
     return exportAprilTagLayout(map);
   }, [map]);
 
+  const applyBuiltin = useCallback((m: FieldMap): void => {
+    setMap({ ...m, tags: m.tags.map((t) => ({ ...t })), image: m.image ? { ...m.image } : undefined });
+  }, []);
+
   const reset = useCallback((): void => {
     setMap(DEFAULT_FIELD_MAP);
   }, []);
@@ -120,6 +129,7 @@ export function useFieldMap(): FieldMapApi {
     importJson,
     importPng,
     exportTags,
+    applyBuiltin,
     reset,
     storeWarning,
     clearStoreWarning: () => setStoreWarning(null),
